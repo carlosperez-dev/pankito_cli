@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -15,20 +16,24 @@ func main() {
 }
 
 type PankitoBaseCard struct {
-	Content    string
+	Front      string
+	Back       string
 	Interval   int
 	EaseFactor float32
 	Repetition int
+	ReviewDate time.Time
 }
 
 func CardsToReview() []PankitoBaseCard {
 	deck := make([]PankitoBaseCard, 0)
 	for i := 0; i < 10; i++ {
 		deck = append(deck, PankitoBaseCard{
-			Content:    fmt.Sprintf("Test %v", i),
-			Interval:   0,
+			Front:      fmt.Sprintf("Test %v?", i),
+			Back:       fmt.Sprintf("Answer %v", i),
+			Interval:   6,
 			EaseFactor: 2.5,
-			Repetition: 0,
+			Repetition: 2,
+			ReviewDate: time.Now(),
 		})
 	}
 	return deck
@@ -67,9 +72,17 @@ func ReviewNextCard(reviewDeck []PankitoBaseCard) []PankitoBaseCard {
 
 	//get quality
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Printf(">%s \n", card.Content)
-	fmt.Println(">Type the difficulty")
+	year, month, day := card.ReviewDate.Date()
+	fmt.Printf("> %s \n> Current Date: %v/%v/%v \n", card.Front, day, int(month), year)
+
+	fmt.Println("> Press 'Enter' to show answer...")
+	bufio.NewReader(os.Stdin).ReadBytes('\n')
+
+	fmt.Printf("> %s \n", card.Back)
+	fmt.Println("> Quality of answer (0 - 5)")
+
 	input, err := reader.ReadString('\n')
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,6 +103,9 @@ func ReviewNextCard(reviewDeck []PankitoBaseCard) []PankitoBaseCard {
 		card.Repetition = card.Repetition + 1
 		card.EaseFactor = CalculateEaseFactor(card.EaseFactor, quality)
 		card.Interval = CalculateInterval(card.Repetition, card.Interval, card.EaseFactor)
+		card.ReviewDate = card.ReviewDate.AddDate(0, 0, card.Interval)
+		year, month, day := card.ReviewDate.Date()
+		fmt.Printf("> Next review in %v days \n> New Revivew date: %v/%v/%v \n \n", card.Interval, day, int(month), year)
 		//persist card changes
 		pop = true
 		return UpdateReviewDeck(reviewDeck, pop)
