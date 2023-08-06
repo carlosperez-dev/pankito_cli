@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -15,7 +16,8 @@ import (
 )
 
 func main() {
-	db, err := newDb()
+	file := "pankito"
+	db, err := newDb(file)
 	if err != nil {
 		log.Fatal("Error when starting db", err)
 	}
@@ -28,11 +30,14 @@ type DB struct {
 	db *sql.DB
 }
 
-func newDb() (*DB, error) {
-	file := "pankito.db"
+func newDb(file string) (*DB, error) {
+	file = strings.TrimSpace(file)
+	if file == "" {
+		return nil, errors.New("cannot instantiate a db with empty/whitespace name")
+	}
 	create := "CREATE TABLE IF NOT EXISTS [Cards] ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, Front TEXT NOT NULL, Back TEXT NOT NULL, Interval INTEGER NOT NULL, EaseFactor DECIMAL(10,8) NOT NULL, Repetition INTEGER NOT NULL, ReviewDate DATETIME NOT NULL);"
 
-	db, err := sql.Open("sqlite3", file)
+	db, err := sql.Open("sqlite3", file+".db")
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +98,7 @@ func GetCardsToReview(db *DB) []PankitoBaseCard {
 		i := PankitoBaseCard{}
 		err = rows.Scan(&i.Id, &i.Front, &i.Back, &i.Interval, &i.EaseFactor, &i.Repetition, &i.ReviewDate)
 		if err != nil {
-			log.Fatal("Error occurred whilst mapping cards Id: %v", &i.Id, err)
+			log.Printf("Error occurred whilst mapping cards Id: %v - error: %v", &i.Id, err)
 		}
 		data = append(data, i)
 		fmt.Println(i)
