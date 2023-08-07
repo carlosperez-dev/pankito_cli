@@ -101,7 +101,6 @@ func GetCardsToReview(db *DB) []PankitoBaseCard {
 			log.Printf("Error occurred whilst mapping cards Id: %v - error: %v", &i.Id, err)
 		}
 		data = append(data, i)
-		fmt.Println(i)
 	}
 	return data
 
