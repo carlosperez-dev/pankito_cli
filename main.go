@@ -17,14 +17,32 @@ import (
 )
 
 func main() {
+	menu := []string{
+		"Add Card",
+		"Review Deck",
+		"Quit",
+	}
 	file := "pankito"
 	db, err := newDb(file)
 	if err != nil {
 		log.Fatal("Error when starting db", err)
 	}
-	// AddCardsToReview(db)
-	// GetCardsToReview(db)
-	StartDeckReview(GetCardsToReview(db), db)
+
+	OpenMenu(menu, db)
+}
+
+func OpenMenu(menu []string, db *DB) {
+	option := SelectOption(menu)
+	if option == menu[0] {
+		card := CreateCard()
+		AddNewCard(db, card)
+		OpenMenu(menu, db)
+	} else if option == menu[1] {
+		StartDeckReview(GetCardsToReview(db), db)
+		OpenMenu(menu, db)
+	} else if option == menu[2] {
+		os.Exit(0)
+	}
 }
 
 type DB struct {
@@ -85,6 +103,70 @@ func AddCardsToReview(db *DB) []BaseCard {
 	return deck
 }
 
+func CreateCard() BaseCard {
+	front := GetFrontOfCard()
+	back := GetBackOfCard()
+
+	return BaseCard{
+		Id:         0,
+		Front:      front,
+		Back:       back,
+		Interval:   0,
+		EaseFactor: 0,
+		Repetition: 0,
+		ReviewDate: time.Time{},
+	}
+
+}
+
+func GetBackOfCard() string {
+	validate := func(input string) error {
+		if len(input) == 0 {
+			return errors.New("back of card cannot be empty")
+		}
+		return nil
+	}
+
+	username := ""
+
+	prompt := promptui.Prompt{
+		Label:    "Back of card",
+		Validate: validate,
+		Default:  username,
+	}
+
+	result, err := prompt.Run()
+
+	if err != nil {
+		fmt.Printf("Prompt failed %v\n", err)
+	}
+	return result
+}
+
+func GetFrontOfCard() string {
+	validate := func(input string) error {
+		if len(input) == 0 {
+			return errors.New("front of card cannot be empty")
+		}
+		return nil
+	}
+
+	username := ""
+
+	prompt := promptui.Prompt{
+		Label:    "Front of card",
+		Validate: validate,
+		Default:  username,
+	}
+
+	result, err := prompt.Run()
+
+	if err != nil {
+		fmt.Printf("Prompt failed %v\n", err)
+	}
+	return result
+}
+
 func GetCardsToReview(db *DB) []BaseCard {
 	stmt := "SELECT * FROM Cards WHERE datetime(ReviewDate) <= datetime('now') ORDER BY ReviewDate"
 	rows, err := db.db.Query(stmt)
@@ -109,7 +191,7 @@ func GetCardsToReview(db *DB) []BaseCard {
 
 func StartDeckReview(deck []BaseCard, db *DB) []BaseCard {
 	if len(deck) == 0 {
-		fmt.Print("Review complete!🎉 ")
+		fmt.Print("No cards to review! 🎉 \n ")
 		return nil
 	} else {
 		updatedDeck := ReviewCard(deck, db)
@@ -154,6 +236,21 @@ func ViewFront(card *BaseCard) {
 func ViewBack(card *BaseCard) {
 	format := fmt.Sprintf("\x1b[%dm%s\n\x1b[0m", 32, card.Back)
 	fmt.Println(format)
+}
+
+func SelectOption(menu []string) string {
+	prompt := promptui.Select{
+		Label: "Menu",
+		Items: menu,
+	}
+
+	_, result, err := prompt.Run()
+
+	if err != nil {
+		log.Fatalf("Prompt failed %v\n", err)
+	}
+
+	return result
 }
 
 func SelectQuality() string {
