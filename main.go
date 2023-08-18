@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/manifoldco/promptui"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -28,6 +29,16 @@ func main() {
 
 type DB struct {
 	db *sql.DB
+}
+
+type BaseCard struct {
+	Id         int
+	Front      string
+	Back       string
+	Interval   int
+	EaseFactor float32
+	Repetition int
+	ReviewDate time.Time
 }
 
 func newDb(file string) (*DB, error) {
@@ -50,7 +61,7 @@ func newDb(file string) (*DB, error) {
 	}, nil
 }
 
-func AddNewCard(db *DB, card PankitoBaseCard) {
+func AddNewCard(db *DB, card BaseCard) {
 	stmt := "INSERT INTO Cards(Front, Back, Interval, EaseFactor, Repetition, ReviewDate) VALUES (?, ?, ?, ?, ?, ?)"
 	if _, err := db.db.Exec(stmt, card.Front, card.Back, 0, 2.5, 0, time.Now()); err != nil {
 		log.Fatal("Failed to execute INSERT", err)
@@ -58,20 +69,10 @@ func AddNewCard(db *DB, card PankitoBaseCard) {
 	log.Printf("Card added")
 }
 
-type PankitoBaseCard struct {
-	Id         int
-	Front      string
-	Back       string
-	Interval   int
-	EaseFactor float32
-	Repetition int
-	ReviewDate time.Time
-}
-
-func AddCardsToReview(db *DB) []PankitoBaseCard {
-	deck := make([]PankitoBaseCard, 0)
+func AddCardsToReview(db *DB) []BaseCard {
+	deck := make([]BaseCard, 0)
 	for i := 0; i < 10; i++ {
-		deck = append(deck, PankitoBaseCard{
+		deck = append(deck, BaseCard{
 			Front:      fmt.Sprintf("Test %v?", i),
 			Back:       fmt.Sprintf("Answer %v", i),
 			Interval:   0,
@@ -84,7 +85,7 @@ func AddCardsToReview(db *DB) []PankitoBaseCard {
 	return deck
 }
 
-func GetCardsToReview(db *DB) []PankitoBaseCard {
+func GetCardsToReview(db *DB) []BaseCard {
 	stmt := "SELECT * FROM Cards WHERE datetime(ReviewDate) <= datetime('now') ORDER BY ReviewDate"
 	rows, err := db.db.Query(stmt)
 	if err != nil {
@@ -93,9 +94,9 @@ func GetCardsToReview(db *DB) []PankitoBaseCard {
 
 	defer rows.Close()
 
-	data := []PankitoBaseCard{}
+	data := []BaseCard{}
 	for rows.Next() {
-		i := PankitoBaseCard{}
+		i := BaseCard{}
 		err = rows.Scan(&i.Id, &i.Front, &i.Back, &i.Interval, &i.EaseFactor, &i.Repetition, &i.ReviewDate)
 		if err != nil {
 			log.Printf("Error occurred whilst mapping cards Id: %v - error: %v", &i.Id, err)
@@ -106,17 +107,18 @@ func GetCardsToReview(db *DB) []PankitoBaseCard {
 
 }
 
-func StartDeckReview(deck []PankitoBaseCard, db *DB) []PankitoBaseCard {
+func StartDeckReview(deck []BaseCard, db *DB) []BaseCard {
 	if len(deck) == 0 {
-		return deck
+		fmt.Print("Review complete!🎉 ")
+		return nil
 	} else {
 		updatedDeck := ReviewCard(deck, db)
 		return StartDeckReview(updatedDeck, db)
 	}
 }
 
-func UpdateReviewDeck(reviewDeck []PankitoBaseCard, pop bool) []PankitoBaseCard {
-	updatedReviewDeck := make([]PankitoBaseCard, 0)
+func UpdateReviewDeck(reviewDeck []BaseCard, pop bool) []BaseCard {
+	updatedReviewDeck := make([]BaseCard, 0)
 	if pop {
 		return append(updatedReviewDeck, reviewDeck[1:]...)
 	} else {
@@ -125,59 +127,82 @@ func UpdateReviewDeck(reviewDeck []PankitoBaseCard, pop bool) []PankitoBaseCard 
 	}
 }
 
-func ReviewCard(reviewDeck []PankitoBaseCard, db *DB) []PankitoBaseCard {
+func ReviewCard(reviewDeck []BaseCard, db *DB) []BaseCard {
 	card := &reviewDeck[0]
-	var pop bool
+	qualityString := ViewFrontAndBack(card)
+	quality := ParseInput(qualityString)
+	pop := UpdateCard(card, quality, db)
 
-	//get quality
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Printf("\n > %s \n\n", card.Front)
+	return UpdateReviewDeck(reviewDeck, pop)
+}
 
-	fmt.Println("--> Press 'Enter' to show answer")
-	bufio.NewReader(os.Stdin).ReadBytes('\n')
+func ViewFrontAndBack(card *BaseCard) string {
+	ViewFront(card)
+	ViewBack(card)
+	input := SelectQuality()
+	return input
+}
 
-	fmt.Printf("> %s \n", card.Back)
-	fmt.Println("\n --> Quality of answer (0 - 5)?")
+func ViewFront(card *BaseCard) {
+	format := fmt.Sprintf("\x1b[%dm\n > %s \x1b[0m", 34, "Press 'Enter' to show answer")
+	fmt.Println(format)
+	format = fmt.Sprintf("\x1b[%dm\n%s\x1b[0m", 33, card.Front)
+	fmt.Println(format)
+	bufio.NewReader(os.Stdin).ReadString('\n')
+}
 
-	input, err := reader.ReadString('\n')
+func ViewBack(card *BaseCard) {
+	format := fmt.Sprintf("\x1b[%dm%s\n\x1b[0m", 32, card.Back)
+	fmt.Println(format)
+}
+
+func SelectQuality() string {
+	prompt := promptui.Select{
+		Label: "Quality of answer",
+		Items: []string{"0", "1", "2", "3", "4", "5"},
+	}
+
+	_, result, err := prompt.Run()
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Prompt failed %v\n", err)
 	}
+
+	return result
+}
+
+func UpdateCard(card *BaseCard, quality float32, db *DB) bool {
+	if quality > 3 {
+		card.Repetition = card.Repetition + 1
+		card.EaseFactor = CalculateEaseFactor(card.EaseFactor, quality)
+		card.Interval = CalculateInterval(card.Repetition, card.Interval, card.EaseFactor)
+		card.ReviewDate = truncateToDay(card.ReviewDate.AddDate(0, 0, card.Interval))
+		_, err := db.db.Exec("UPDATE Cards SET Repetition = ?, EaseFactor = ?, Interval = ?, ReviewDate = ? WHERE Id = ?;", card.Repetition, card.EaseFactor, card.Interval, card.ReviewDate, card.Id)
+		if err != nil {
+			fmt.Printf("Failed to update card Id: %v with error: %v", card.Id, err)
+		}
+		return true
+	}
+
+	card.Repetition = 0
+	card.EaseFactor = CalculateEaseFactor(card.EaseFactor, quality)
+	card.Interval = CalculateInterval(card.Repetition, card.Interval, card.EaseFactor)
+	_, err := db.db.Exec("UPDATE Cards SET Repetition = ?, EaseFactor = ?, Interval = ? WHERE Id = ?;", card.Repetition, card.EaseFactor, card.Interval, card.Id)
+	if err != nil {
+		fmt.Printf("Failed to update card Id: %v with error: %v", card.Id, err)
+	}
+
+	return false
+}
+
+func ParseInput(input string) float32 {
 	input = strings.TrimSpace(input)
 	quality64, err := strconv.ParseFloat(input, 32)
 	if err != nil {
 		log.Fatal(err)
 	}
 	quality := float32(quality64)
-	if quality <= 3 {
-		card.Repetition = 0
-		card.EaseFactor = CalculateEaseFactor(card.EaseFactor, quality)
-		card.Interval = CalculateInterval(card.Repetition, card.Interval, card.EaseFactor)
-
-		//persist card changes
-		_, err := db.db.Exec("UPDATE Cards SET Repetition = ?, EaseFactor = ?, Interval = ? WHERE Id = ?;", card.Repetition, card.EaseFactor, card.Interval, card.Id)
-		if err != nil {
-			fmt.Printf("Failed to update card Id: %v with error: %v", card.Id, err)
-		}
-
-		pop = false
-		return UpdateReviewDeck(reviewDeck, pop)
-	} else {
-		card.Repetition = card.Repetition + 1
-		card.EaseFactor = CalculateEaseFactor(card.EaseFactor, quality)
-		card.Interval = CalculateInterval(card.Repetition, card.Interval, card.EaseFactor)
-		card.ReviewDate = truncateToDay(card.ReviewDate.AddDate(0, 0, card.Interval))
-
-		//persist card changes
-		_, err := db.db.Exec("UPDATE Cards SET Repetition = ?, EaseFactor = ?, Interval = ?, ReviewDate = ? WHERE Id = ?;", card.Repetition, card.EaseFactor, card.Interval, card.ReviewDate, card.Id)
-		if err != nil {
-			fmt.Printf("Failed to update card Id: %v with error: %v", card.Id, err)
-		}
-
-		pop = true
-		return UpdateReviewDeck(reviewDeck, pop)
-	}
+	return quality
 }
 
 func CalculateEaseFactor(ef float32, quality float32) float32 {

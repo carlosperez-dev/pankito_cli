@@ -126,8 +126,8 @@ func TestGivenACardIsDueInPast_ShouldReturnCard(t *testing.T) {
 	}
 }
 
-func PastCard(id int) PankitoBaseCard {
-	return PankitoBaseCard{
+func PastCard(id int) BaseCard {
+	return BaseCard{
 		Front:      fmt.Sprintf("Past Front %v", id),
 		Back:       fmt.Sprintf("Past Back %v", id),
 		Interval:   0,
@@ -137,8 +137,8 @@ func PastCard(id int) PankitoBaseCard {
 	}
 }
 
-func CurrentCard(id int) PankitoBaseCard {
-	return PankitoBaseCard{
+func CurrentCard(id int) BaseCard {
+	return BaseCard{
 		Id:         id,
 		Front:      fmt.Sprintf("Current Front %v", id),
 		Back:       fmt.Sprintf("Current Back %v", id),
@@ -149,8 +149,8 @@ func CurrentCard(id int) PankitoBaseCard {
 	}
 }
 
-func FutureCard(id int) PankitoBaseCard {
-	return PankitoBaseCard{
+func FutureCard(id int) BaseCard {
+	return BaseCard{
 		Front:      fmt.Sprintf("Future Front %v", id),
 		Back:       fmt.Sprintf("Future Back %v", id),
 		Interval:   0,
@@ -161,7 +161,7 @@ func FutureCard(id int) PankitoBaseCard {
 }
 
 func AddCardsDueToday(db *sql.DB, quantity int) {
-	deck := make([]PankitoBaseCard, 0)
+	deck := make([]BaseCard, 0)
 	for i := 1; i < quantity+1; i++ {
 		deck = append(deck, CurrentCard(i))
 		stmt := "INSERT INTO Cards(Front, Back, Interval, EaseFactor, Repetition, ReviewDate) VALUES (?, ?, ?, ?, ?, ?)"
@@ -172,7 +172,7 @@ func AddCardsDueToday(db *sql.DB, quantity int) {
 }
 
 func AddCardsDueInPast(db *sql.DB, quantity int) {
-	deck := make([]PankitoBaseCard, 0)
+	deck := make([]BaseCard, 0)
 	for i := 1; i < quantity+1; i++ {
 		deck = append(deck, PastCard(i))
 		stmt := "INSERT INTO Cards(Front, Back, Interval, EaseFactor, Repetition, ReviewDate) VALUES (?, ?, ?, ?, ?, ?)"
@@ -182,7 +182,7 @@ func AddCardsDueInPast(db *sql.DB, quantity int) {
 	}
 }
 func AddCardsDueInFuture(db *sql.DB, quantity int) {
-	deck := make([]PankitoBaseCard, 0)
+	deck := make([]BaseCard, 0)
 	for i := 1; i < quantity+1; i++ {
 		deck = append(deck, FutureCard(i))
 		stmt := "INSERT INTO Cards(Front, Back, Interval, EaseFactor, Repetition, ReviewDate) VALUES (?, ?, ?, ?, ?, ?)"
