@@ -19,9 +19,9 @@ func CreateDatabase() *sql.DB {
 	if err != nil {
 		log.Fatal("Failed to create DB")
 	}
-	addCardTable := "CREATE TABLE IF NOT EXISTS [Cards] ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, Front TEXT NOT NULL, Back TEXT NOT NULL, Interval INTEGER NOT NULL, EaseFactor DECIMAL(10,8) NOT NULL, Repetition INTEGER NOT NULL, ReviewDate DATETIME NOT NULL);"
+	create := "CREATE TABLE IF NOT EXISTS [Cards] ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, DeckId INTEGER NOT NULL,Front TEXT NOT NULL, Back TEXT NOT NULL, Interval INTEGER NOT NULL, EaseFactor DECIMAL(10,8) NOT NULL, Repetition INTEGER NOT NULL, ReviewDate DATETIME NOT NULL, FOREIGN KEY(DeckId) REFERENCES Decks(Id)); CREATE TABLE IF NOT EXISTS [Decks] ( Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL);"
 
-	if _, err := db.Exec(addCardTable); err != nil {
+	if _, err := db.Exec(create); err != nil {
 		log.Fatal("Failed to create table: Cards")
 	}
 	return db
@@ -74,12 +74,13 @@ func TestGivenEmptyDbName_ShouldRaiseError(t *testing.T) {
 func TestGivenACardIsDueToday_ShouldReturnCardDue(t *testing.T) {
 	db := SetUp()
 	defer db.Close()
+	AddDeck(db)
 	AddCardsDueToday(db, 1)
 	AddCardsDueInFuture(db, 1)
 	dbStruct := DB{
 		db,
 	}
-	cards := GetCardsToReview(&dbStruct)
+	cards := GetCardsToReview(&dbStruct, 1)
 	if len(cards) > 1 {
 		t.Error("Returned wrong number of cards due today")
 	}
@@ -95,11 +96,12 @@ func TestGivenACardIsDueToday_ShouldReturnCardDue(t *testing.T) {
 func TestGivenACardsDueInFuture_ShouldReturnNoCards(t *testing.T) {
 	db := SetUp()
 	defer db.Close()
+	AddDeck(db)
 	AddCardsDueInFuture(db, 5)
 	dbStruct := DB{
 		db,
 	}
-	cards := GetCardsToReview(&dbStruct)
+	cards := GetCardsToReview(&dbStruct, 1)
 	if len(cards) > 0 {
 		t.Errorf("Returned cards due in future, %v", cards)
 	}
@@ -108,12 +110,13 @@ func TestGivenACardsDueInFuture_ShouldReturnNoCards(t *testing.T) {
 func TestGivenACardIsDueInPast_ShouldReturnCard(t *testing.T) {
 	db := SetUp()
 	defer db.Close()
+	AddDeck(db)
 	AddCardsDueInPast(db, 1)
 	AddCardsDueInFuture(db, 1)
 	dbStruct := DB{
 		db,
 	}
-	cards := GetCardsToReview(&dbStruct)
+	cards := GetCardsToReview(&dbStruct, 1)
 	if len(cards) > 1 {
 		t.Errorf("Returned wrong number of cards due in past, %v", cards)
 	}
@@ -164,8 +167,8 @@ func AddCardsDueToday(db *sql.DB, quantity int) {
 	deck := make([]BaseCard, 0)
 	for i := 1; i < quantity+1; i++ {
 		deck = append(deck, CurrentCard(i))
-		stmt := "INSERT INTO Cards(Front, Back, Interval, EaseFactor, Repetition, ReviewDate) VALUES (?, ?, ?, ?, ?, ?)"
-		if _, err := db.Exec(stmt, deck[len(deck)-1].Front, deck[len(deck)-1].Back, 0, 2.5, 0, deck[len(deck)-1].ReviewDate); err != nil {
+		stmt := "INSERT INTO Cards(DeckId, Front, Back, Interval, EaseFactor, Repetition, ReviewDate) VALUES (?, ?, ?, ?, ?, ?, ?)"
+		if _, err := db.Exec(stmt, 1, deck[len(deck)-1].Front, deck[len(deck)-1].Back, 0, 2.5, 0, deck[len(deck)-1].ReviewDate); err != nil {
 			log.Fatal("Failed to execute INSERT", err)
 		}
 	}
@@ -175,8 +178,8 @@ func AddCardsDueInPast(db *sql.DB, quantity int) {
 	deck := make([]BaseCard, 0)
 	for i := 1; i < quantity+1; i++ {
 		deck = append(deck, PastCard(i))
-		stmt := "INSERT INTO Cards(Front, Back, Interval, EaseFactor, Repetition, ReviewDate) VALUES (?, ?, ?, ?, ?, ?)"
-		if _, err := db.Exec(stmt, deck[len(deck)-1].Front, deck[len(deck)-1].Back, 0, 2.5, 0, deck[len(deck)-1].ReviewDate); err != nil {
+		stmt := "INSERT INTO Cards(DeckId, Front, Back, Interval, EaseFactor, Repetition, ReviewDate) VALUES (?, ?, ?, ?, ?, ?, ?)"
+		if _, err := db.Exec(stmt, 1, deck[len(deck)-1].Front, deck[len(deck)-1].Back, 0, 2.5, 0, deck[len(deck)-1].ReviewDate); err != nil {
 			log.Fatal("Failed to execute INSERT", err)
 		}
 	}
@@ -185,10 +188,17 @@ func AddCardsDueInFuture(db *sql.DB, quantity int) {
 	deck := make([]BaseCard, 0)
 	for i := 1; i < quantity+1; i++ {
 		deck = append(deck, FutureCard(i))
-		stmt := "INSERT INTO Cards(Front, Back, Interval, EaseFactor, Repetition, ReviewDate) VALUES (?, ?, ?, ?, ?, ?)"
-		if _, err := db.Exec(stmt, deck[len(deck)-1].Front, deck[len(deck)-1].Back, 0, 2.5, 0, deck[len(deck)-1].ReviewDate); err != nil {
+		stmt := "INSERT INTO Cards(DeckId, Front, Back, Interval, EaseFactor, Repetition, ReviewDate) VALUES (?, ?, ?, ?, ?, ?, ?)"
+		if _, err := db.Exec(stmt, 1, deck[len(deck)-1].Front, deck[len(deck)-1].Back, 0, 2.5, 0, deck[len(deck)-1].ReviewDate); err != nil {
 			log.Fatal("Failed to execute INSERT", err)
 		}
+	}
+}
+
+func AddDeck(db *sql.DB) {
+	stmt := "INSERT INTO Decks(Name) VALUES (?)"
+	if _, err := db.Exec(stmt, "Test Deck"); err != nil {
+		log.Fatal("Failed to execute INSERT", err)
 	}
 }
 
