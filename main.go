@@ -24,7 +24,9 @@ func main() {
 		"Create Deck",
 		"Quit",
 	}
+
 	file := "pankito"
+
 	db, err := newDb(file)
 	if err != nil {
 		log.Fatal("Error when starting db", err)
@@ -41,8 +43,12 @@ func OpenMenu(menu []string, db *DB) {
 		OpenMenu(menu, db)
 	} else if option == menu[1] {
 		deckId := GetDeckOfCard(db)
-		StartDeckReview(GetCardsToReview(db, deckId), db)
-		OpenMenu(menu, db)
+		if deckId == 0 {
+			OpenMenu(menu, db)
+		} else {
+			StartDeckReview(GetCardsToReview(db, deckId), db)
+			OpenMenu(menu, db)
+		}
 	} else if option == menu[2] {
 		deck := CreateDeck()
 		AddNewDeck(db, deck)
@@ -97,7 +103,7 @@ func AddNewDeck(db *DB, deck BaseDeck) {
 	if _, err := db.db.Exec(stmt, deck.Name); err != nil {
 		log.Fatal("Failed to execute INSERT", err)
 	}
-	log.Printf("Deck added")
+	fmt.Printf("Deck %s succesfully added!", deck.Name)
 }
 
 func AddNewCard(db *DB, card BaseCard) {
@@ -105,7 +111,7 @@ func AddNewCard(db *DB, card BaseCard) {
 	if _, err := db.db.Exec(stmt, card.DeckId, card.Front, card.Back, 0, 2.5, 0, time.Now()); err != nil {
 		log.Fatal("Failed to execute INSERT", err)
 	}
-	log.Printf("Card added")
+	fmt.Printf("Card succesfully added!")
 }
 
 func AddCardsToReview(db *DB) []BaseCard {
@@ -126,6 +132,12 @@ func AddCardsToReview(db *DB) []BaseCard {
 
 func CreateCard(db *DB) BaseCard {
 	deckId := GetDeckOfCard(db)
+	if deckId == 0 {
+		fmt.Print("Let's create one! \n ")
+		deck := CreateDeck()
+		AddNewDeck(db, deck)
+		deckId = GetDeckOfCard(db)
+	}
 	front := GetFrontOfCard()
 	back := GetBackOfCard()
 
@@ -144,6 +156,10 @@ func CreateCard(db *DB) BaseCard {
 
 func GetDeckOfCard(db *DB) int {
 	decks := GetExistingDecks(db)
+	if len(decks) == 0 {
+		fmt.Print("No decks found 😔 \n ")
+		return 0
+	}
 	templates := &promptui.SelectTemplates{
 		Active:   "➡️ {{ .Name | blue | underline}}",
 		Inactive: " {{ .Name | faint }}",
@@ -195,7 +211,7 @@ func GetExistingDecks(db *DB) []BaseDeck {
 }
 
 func CreateDeck() BaseDeck {
-	name := GetNameOfDeck()
+	name := SetNameOfDeck()
 	return BaseDeck{
 		Id:   0,
 		Name: name,
@@ -250,7 +266,7 @@ func GetFrontOfCard() string {
 	return result
 }
 
-func GetNameOfDeck() string {
+func SetNameOfDeck() string {
 	validate := func(input string) error {
 		if len(input) == 0 {
 			return errors.New("name of deck cannot be empty")
