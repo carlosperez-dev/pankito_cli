@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -184,9 +185,9 @@ func GetDeckOfCard(db *DB) int {
 		return 0
 	}
 	templates := &promptui.SelectTemplates{
-		Active:   "➡️ {{ .Name | blue | underline}}",
-		Inactive: " {{ .Name | faint }}",
-		Selected: "✅ {{ .Name | green }}",
+		Active:   "▸ {{.Name| underline}}",
+		Inactive: "  {{.Name| faint }}",
+		Selected: "✔ {{.Name| green }}",
 	}
 
 	searcher := func(input string, index int) bool {
@@ -369,22 +370,23 @@ func ViewFrontAndBack(card *BaseCard) string {
 }
 
 func ViewFront(card *BaseCard) {
-	format := fmt.Sprintf("\x1b[%dm\n > %s \x1b[0m", 34, "Press 'Enter' to show answer")
+	format := fmt.Sprintf("Press 'Enter' to show answer \n")
 	fmt.Println(format)
-	format = fmt.Sprintf("\x1b[%dm\n%s\x1b[0m", 93, card.Front)
+	format = fmt.Sprintf(card.Front)
 	fmt.Println(format)
 	bufio.NewReader(os.Stdin).ReadString('\n')
 }
 
 func ViewBack(card *BaseCard) {
-	format := fmt.Sprintf("\x1b[%dm%s\n\x1b[0m", 32, card.Back)
+	format := fmt.Sprintf(card.Back)
 	fmt.Println(format)
 }
 
 func SelectOption(menu []string, label string) string {
 	prompt := promptui.Select{
-		Label: label,
-		Items: menu,
+		Label:        label,
+		Items:        menu,
+		HideSelected: true,
 	}
 
 	_, result, err := prompt.Run()
@@ -397,12 +399,19 @@ func SelectOption(menu []string, label string) string {
 }
 
 func SelectQuality() string {
-	prompt := promptui.Select{
-		Label: "Quality of answer",
-		Items: []string{"0", "1", "2", "3", "4", "5"},
+	possibleQuality := []string{"1", "2", "3", "4", "5"}
+	validate := func(input string) error {
+		if !slices.Contains(possibleQuality, strings.TrimSpace(input)) {
+			return errors.New("Quality must be a number 1 (lowest) - 5 (highest)")
+		}
+		return nil
+	}
+	prompt := promptui.Prompt{
+		Label:    "Quality of answer",
+		Validate: validate,
 	}
 
-	_, result, err := prompt.Run()
+	result, err := prompt.Run()
 
 	if err != nil {
 		log.Fatalf("Prompt failed %v\n", err)
