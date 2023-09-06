@@ -36,25 +36,48 @@ func main() {
 }
 
 func OpenMenu(menu []string, db *DB) {
-	option := SelectOption(menu)
-	if option == menu[0] {
-		card := CreateCard(db)
-		AddNewCard(db, card)
-		OpenMenu(menu, db)
-	} else if option == menu[1] {
-		deckId := GetDeckOfCard(db)
-		if deckId == 0 {
-			OpenMenu(menu, db)
-		} else {
-			StartDeckReview(GetCardsToReview(db, deckId), db)
-			OpenMenu(menu, db)
-		}
-	} else if option == menu[2] {
-		deck := CreateDeck()
-		AddNewDeck(db, deck)
-		OpenMenu(menu, db)
-	} else if option == menu[3] {
+	menuOptions := SelectOption(menu, "Menu")
+	creationOptions := []string{"Add more", "Return to menu"}
+	if menuOptions == menu[0] {
+		AddCardHandler(db, creationOptions, menu)
+	} else if menuOptions == menu[1] {
+		ReviewDeckHandler(db, menu)
+	} else if menuOptions == menu[2] {
+		AddDeckHandler(db, creationOptions, menu)
+	} else if menuOptions == menu[3] {
 		os.Exit(0)
+	}
+}
+
+func ReviewDeckHandler(db *DB, menu []string) {
+	deckId := GetDeckOfCard(db)
+	if deckId == 0 {
+		OpenMenu(menu, db)
+	} else {
+		StartDeckReview(GetCardsToReview(db, deckId), db)
+		OpenMenu(menu, db)
+	}
+}
+
+func AddDeckHandler(db *DB, creationOptions []string, menu []string) {
+	deck := CreateDeck()
+	AddNewDeck(db, deck)
+	i := SelectOption(creationOptions, "Options")
+	if i == creationOptions[0] {
+		AddDeckHandler(db, creationOptions, menu)
+	} else {
+		OpenMenu(menu, db)
+	}
+}
+
+func AddCardHandler(db *DB, creationOptions []string, menu []string) {
+	card := CreateCard(db)
+	AddNewCard(db, card)
+	i := SelectOption(creationOptions, "Options")
+	if i == creationOptions[0] {
+		AddCardHandler(db, creationOptions, menu)
+	} else {
+		OpenMenu(menu, db)
 	}
 }
 
@@ -226,12 +249,10 @@ func GetBackOfCard() string {
 		return nil
 	}
 
-	username := ""
-
 	prompt := promptui.Prompt{
 		Label:    "Back of card",
 		Validate: validate,
-		Default:  username,
+		Default:  "",
 	}
 
 	result, err := prompt.Run()
@@ -360,9 +381,9 @@ func ViewBack(card *BaseCard) {
 	fmt.Println(format)
 }
 
-func SelectOption(menu []string) string {
+func SelectOption(menu []string, label string) string {
 	prompt := promptui.Select{
-		Label: "Menu",
+		Label: label,
 		Items: menu,
 	}
 
