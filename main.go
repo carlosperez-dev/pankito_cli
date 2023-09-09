@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"os/exec"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,8 +21,8 @@ import (
 func main() {
 
 	menu := []string{
+		"Review",
 		"Add Card",
-		"Review Deck",
 		"Create Deck",
 		"Quit",
 	}
@@ -38,11 +39,11 @@ func main() {
 
 func OpenMenu(menu []string, db *DB) {
 	menuOptions := SelectOption(menu, "Menu")
-	creationOptions := []string{"Add more", "Return to menu"}
+	creationOptions := []string{"Save", "Add more", "Discard"}
 	if menuOptions == menu[0] {
-		AddCardHandler(db, creationOptions, menu)
+		ReviewHandler(db, menu)
 	} else if menuOptions == menu[1] {
-		ReviewDeckHandler(db, menu)
+		AddCardHandler(db, creationOptions, menu)
 	} else if menuOptions == menu[2] {
 		AddDeckHandler(db, creationOptions, menu)
 	} else if menuOptions == menu[3] {
@@ -50,8 +51,8 @@ func OpenMenu(menu []string, db *DB) {
 	}
 }
 
-func ReviewDeckHandler(db *DB, menu []string) {
-	deckId := GetDeckOfCard(db)
+func ReviewHandler(db *DB, menu []string) {
+	deckId := GetDeckOfCardForReview(db)
 	if deckId == 0 {
 		OpenMenu(menu, db)
 	} else {
@@ -62,22 +63,32 @@ func ReviewDeckHandler(db *DB, menu []string) {
 
 func AddDeckHandler(db *DB, creationOptions []string, menu []string) {
 	deck := CreateDeck()
-	AddNewDeck(db, deck)
-	i := SelectOption(creationOptions, "Options")
-	if i == creationOptions[0] {
+	j := SelectOption(creationOptions, "Options")
+	if j == creationOptions[0] {
+		AddNewDeck(db, deck)
+		clearConsole()
+		OpenMenu(menu, db)
+	} else if j == creationOptions[1] {
+		AddNewDeck(db, deck)
 		AddDeckHandler(db, creationOptions, menu)
 	} else {
+		clearConsole()
 		OpenMenu(menu, db)
 	}
 }
 
 func AddCardHandler(db *DB, creationOptions []string, menu []string) {
 	card := CreateCard(db)
-	AddNewCard(db, card)
-	i := SelectOption(creationOptions, "Options")
-	if i == creationOptions[0] {
+	j := SelectOption(creationOptions, "Options")
+	if j == creationOptions[0] {
+		AddNewCard(db, card)
+		clearConsole()
+		OpenMenu(menu, db)
+	} else if j == creationOptions[1] {
+		AddNewCard(db, card)
 		AddCardHandler(db, creationOptions, menu)
 	} else {
+		clearConsole()
 		OpenMenu(menu, db)
 	}
 }
@@ -100,6 +111,12 @@ type BaseCard struct {
 type BaseDeck struct {
 	Id   int
 	Name string
+}
+
+type BaseDeckWithCardCount struct {
+	Id            int
+	Name          string
+	CardsToReview int
 }
 
 func newDb(file string) (*DB, error) {
@@ -173,8 +190,47 @@ func CreateCard(db *DB) BaseCard {
 		Interval:   0,
 		EaseFactor: 0,
 		Repetition: 0,
-		ReviewDate: time.Time{},
+		ReviewDate: time.Now(),
 	}
+
+}
+
+func GetDeckOfCardForReview(db *DB) int {
+	decks := GetExistingDecksWithCardCount(db)
+	if len(decks) == 0 {
+		fmt.Print("No cards to review today 🥳 \n ")
+		return 0
+	}
+	templates := &promptui.SelectTemplates{
+		Active:   "▸ {{.Name }} ({{.CardsToReview }})",
+		Inactive: "  {{.Name| faint }} {{ .CardsToReview | faint}}",
+		Selected: "✔ {{.Name| green }} {{ .CardsToReview | green }}",
+	}
+
+	searcher := func(input string, index int) bool {
+		deck := decks[index]
+		name := strings.Replace(strings.ToLower(deck.Name), " ", "", -1)
+		input = strings.Replace(strings.ToLower(input), " ", "", -1)
+
+		return strings.Contains(name, input)
+	}
+	prompt := promptui.Select{
+		Label:             "Decks (# to review)",
+		Items:             decks,
+		Templates:         templates,
+		Searcher:          searcher,
+		StartInSearchMode: true,
+		HideSelected:      true,
+		HideHelp:          true,
+		Size:              4,
+	}
+
+	i, _, err := prompt.Run()
+
+	if err != nil {
+		log.Fatalf("Prompt failed %v\n", err)
+	}
+	return decks[i].Id
 
 }
 
@@ -185,8 +241,8 @@ func GetDeckOfCard(db *DB) int {
 		return 0
 	}
 	templates := &promptui.SelectTemplates{
-		Active:   "▸ {{.Name| underline}}",
-		Inactive: "  {{.Name| faint }}",
+		Active:   "▸ {{.Name }}",
+		Inactive: "  {{.Name| faint }} ",
 		Selected: "✔ {{.Name| green }}",
 	}
 
@@ -198,10 +254,14 @@ func GetDeckOfCard(db *DB) int {
 		return strings.Contains(name, input)
 	}
 	prompt := promptui.Select{
-		Label:     "Select deck",
-		Items:     decks,
-		Templates: templates,
-		Searcher:  searcher,
+		Label:             "Decks",
+		Items:             decks,
+		Templates:         templates,
+		Searcher:          searcher,
+		StartInSearchMode: true,
+		HideSelected:      true,
+		HideHelp:          true,
+		Size:              4,
 	}
 
 	i, _, err := prompt.Run()
@@ -226,6 +286,26 @@ func GetExistingDecks(db *DB) []BaseDeck {
 	for rows.Next() {
 		i := BaseDeck{}
 		err = rows.Scan(&i.Id, &i.Name)
+		if err != nil {
+			log.Printf("Error occurred whilst mapping decks Id: %v - error: %v", &i.Id, err)
+		}
+		data = append(data, i)
+	}
+	return data
+}
+
+func GetExistingDecksWithCardCount(db *DB) []BaseDeckWithCardCount {
+	stmt := "SELECT Decks.Id, Decks.Name, COUNT(Cards.Id) AS CardCount FROM Decks JOIN Cards ON Cards.DeckId = Decks.Id WHERE datetime(Cards.ReviewDate) <= datetime('now') GROUP BY Decks.Id ORDER BY Decks.Id;"
+	rows, err := db.db.Query(stmt)
+	if err != nil {
+		log.Fatal("Error querying for cards", err)
+	}
+	defer rows.Close()
+
+	data := []BaseDeckWithCardCount{}
+	for rows.Next() {
+		i := BaseDeckWithCardCount{}
+		err = rows.Scan(&i.Id, &i.Name, &i.CardsToReview)
 		if err != nil {
 			log.Printf("Error occurred whilst mapping decks Id: %v - error: %v", &i.Id, err)
 		}
@@ -272,12 +352,10 @@ func GetFrontOfCard() string {
 		return nil
 	}
 
-	username := ""
-
 	prompt := promptui.Prompt{
 		Label:    "Front of card",
 		Validate: validate,
-		Default:  username,
+		Default:  "",
 	}
 
 	result, err := prompt.Run()
@@ -296,12 +374,10 @@ func SetNameOfDeck() string {
 		return nil
 	}
 
-	name := ""
-
 	prompt := promptui.Prompt{
 		Label:    "Deck name",
 		Validate: validate,
-		Default:  name,
+		Default:  "",
 	}
 
 	result, err := prompt.Run()
@@ -335,7 +411,8 @@ func GetCardsToReview(db *DB, deckId int) []BaseCard {
 
 func StartDeckReview(deck []BaseCard, db *DB) []BaseCard {
 	if len(deck) == 0 {
-		fmt.Print("No cards to review! 🎉 \n ")
+		clearConsole()
+		fmt.Print("Review complete! 🎉 \n ")
 		return nil
 	} else {
 		updatedDeck := ReviewCard(deck, db)
@@ -354,12 +431,20 @@ func UpdateReviewDeck(reviewDeck []BaseCard, pop bool) []BaseCard {
 }
 
 func ReviewCard(reviewDeck []BaseCard, db *DB) []BaseCard {
+	clearConsole()
 	card := &reviewDeck[0]
 	qualityString := ViewFrontAndBack(card)
 	quality := ParseInput(qualityString)
 	pop := UpdateCard(card, quality, db)
+	clearConsole()
 
 	return UpdateReviewDeck(reviewDeck, pop)
+}
+
+func clearConsole() {
+	c := exec.Command("clear")
+	c.Stdout = os.Stdout
+	c.Run()
 }
 
 func ViewFrontAndBack(card *BaseCard) string {
@@ -370,11 +455,11 @@ func ViewFrontAndBack(card *BaseCard) string {
 }
 
 func ViewFront(card *BaseCard) {
-	format := fmt.Sprintf("Press 'Enter' to show answer \n")
+	format := "Press 'Enter' to show answer \n"
 	fmt.Println(format)
 	format = fmt.Sprintf(card.Front)
 	fmt.Println(format)
-	bufio.NewReader(os.Stdin).ReadString('\n')
+	bufio.NewReader(os.Stdin).ReadBytes('\n')
 }
 
 func ViewBack(card *BaseCard) {
@@ -383,10 +468,17 @@ func ViewBack(card *BaseCard) {
 }
 
 func SelectOption(menu []string, label string) string {
+	templates := &promptui.SelectTemplates{
+		Active:   "▸ {{ . }}",
+		Inactive: "  {{ . | faint }}",
+		Selected: "✔ {{ . | green }}",
+	}
+
 	prompt := promptui.Select{
 		Label:        label,
 		Items:        menu,
 		HideSelected: true,
+		Templates:    templates,
 	}
 
 	_, result, err := prompt.Run()
@@ -402,12 +494,12 @@ func SelectQuality() string {
 	possibleQuality := []string{"1", "2", "3", "4", "5"}
 	validate := func(input string) error {
 		if !slices.Contains(possibleQuality, strings.TrimSpace(input)) {
-			return errors.New("Quality must be a number 1 (lowest) - 5 (highest)")
+			return errors.New("Quality must be a number between 1 (lowest) - 5 (highest)")
 		}
 		return nil
 	}
 	prompt := promptui.Prompt{
-		Label:    "Quality of answer",
+		Label:    "Score",
 		Validate: validate,
 	}
 
