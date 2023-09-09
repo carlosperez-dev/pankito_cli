@@ -9,5 +9,6 @@ require (
 
 require (
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
+	github.com/eiannone/keyboard v0.0.0-20220611211555-0d226195f203
 	golang.org/x/sys v0.12.0 // indirect
 )

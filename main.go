@@ -33,7 +33,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Error when starting db", err)
 	}
-
 	OpenMenu(menu, db)
 }
 
@@ -77,16 +76,23 @@ func AddDeckHandler(db *DB, creationOptions []string, menu []string) {
 	}
 }
 
-func AddCardHandler(db *DB, creationOptions []string, menu []string) {
-	card := CreateCard(db)
+func AddCardHandler(db *DB, creationOptions []string, menu []string, params ...int) {
+	var card BaseCard
+	if len(params) == 0 {
+		card = CreateCard(db)
+	} else if len(params) == 1 {
+		card = CreateCard(db, params[0])
+	}
+
 	j := SelectOption(creationOptions, "Options")
+
 	if j == creationOptions[0] {
 		AddNewCard(db, card)
 		clearConsole()
 		OpenMenu(menu, db)
 	} else if j == creationOptions[1] {
 		AddNewCard(db, card)
-		AddCardHandler(db, creationOptions, menu)
+		AddCardHandler(db, creationOptions, menu, card.DeckId)
 	} else {
 		clearConsole()
 		OpenMenu(menu, db)
@@ -171,13 +177,18 @@ func AddCardsToReview(db *DB) []BaseCard {
 	return deck
 }
 
-func CreateCard(db *DB) BaseCard {
-	deckId := GetDeckOfCard(db)
-	if deckId == 0 {
-		fmt.Print("Let's create one! \n ")
-		deck := CreateDeck()
-		AddNewDeck(db, deck)
+func CreateCard(db *DB, params ...int) BaseCard {
+	var deckId int
+	if len(params) == 0 {
 		deckId = GetDeckOfCard(db)
+		if deckId == 0 {
+			fmt.Print("Let's create one! \n ")
+			deck := CreateDeck()
+			AddNewDeck(db, deck)
+			deckId = GetDeckOfCard(db)
+		}
+	} else if len(params) == 1 {
+		deckId = params[0]
 	}
 	front := GetFrontOfCard()
 	back := GetBackOfCard()
@@ -478,6 +489,7 @@ func SelectOption(menu []string, label string) string {
 		Label:        label,
 		Items:        menu,
 		HideSelected: true,
+		HideHelp:     true,
 		Templates:    templates,
 	}
 
