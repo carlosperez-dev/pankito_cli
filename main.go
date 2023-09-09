@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -38,7 +37,7 @@ func main() {
 
 func OpenMenu(menu []string, db *DB) {
 	menuOptions := SelectOption(menu, "Menu")
-	creationOptions := []string{"Save", "Add more", "Discard"}
+	creationOptions := []string{"Add more", "Return to menu"}
 	if menuOptions == menu[0] {
 		ReviewHandler(db, menu)
 	} else if menuOptions == menu[1] {
@@ -62,15 +61,11 @@ func ReviewHandler(db *DB, menu []string) {
 
 func AddDeckHandler(db *DB, creationOptions []string, menu []string) {
 	deck := CreateDeck()
+	AddNewDeck(db, deck)
 	j := SelectOption(creationOptions, "Options")
 	if j == creationOptions[0] {
-		AddNewDeck(db, deck)
-		clearConsole()
-		OpenMenu(menu, db)
-	} else if j == creationOptions[1] {
-		AddNewDeck(db, deck)
 		AddDeckHandler(db, creationOptions, menu)
-	} else {
+	} else if j == creationOptions[1] {
 		clearConsole()
 		OpenMenu(menu, db)
 	}
@@ -83,17 +78,11 @@ func AddCardHandler(db *DB, creationOptions []string, menu []string, params ...i
 	} else if len(params) == 1 {
 		card = CreateCard(db, params[0])
 	}
-
+	AddNewCard(db, card)
 	j := SelectOption(creationOptions, "Options")
-
 	if j == creationOptions[0] {
-		AddNewCard(db, card)
-		clearConsole()
-		OpenMenu(menu, db)
-	} else if j == creationOptions[1] {
-		AddNewCard(db, card)
 		AddCardHandler(db, creationOptions, menu, card.DeckId)
-	} else {
+	} else if j == creationOptions[1] {
 		clearConsole()
 		OpenMenu(menu, db)
 	}
@@ -231,7 +220,6 @@ func GetDeckOfCardForReview(db *DB) int {
 		Templates:         templates,
 		Searcher:          searcher,
 		StartInSearchMode: true,
-		HideSelected:      true,
 		HideHelp:          true,
 		Size:              4,
 	}
@@ -270,7 +258,6 @@ func GetDeckOfCard(db *DB) int {
 		Templates:         templates,
 		Searcher:          searcher,
 		StartInSearchMode: true,
-		HideSelected:      true,
 		HideHelp:          true,
 		Size:              4,
 	}
@@ -466,16 +453,22 @@ func ViewFrontAndBack(card *BaseCard) string {
 }
 
 func ViewFront(card *BaseCard) {
-	format := "Press 'Enter' to show answer \n"
-	fmt.Println(format)
-	format = fmt.Sprintf(card.Front)
-	fmt.Println(format)
-	bufio.NewReader(os.Stdin).ReadBytes('\n')
+	fmt.Println(card.Front)
 }
 
 func ViewBack(card *BaseCard) {
-	format := fmt.Sprintf(card.Back)
-	fmt.Println(format)
+	prompt := promptui.Prompt{
+		Label:     "Press 'Enter' to show answer",
+		IsConfirm: false,
+	}
+
+	_, err := prompt.Run()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+	}
+
+	// Print the answer after Enter is pressed.
+	fmt.Println(card.Back)
 }
 
 func SelectOption(menu []string, label string) string {
@@ -506,7 +499,7 @@ func SelectQuality() string {
 	possibleQuality := []string{"1", "2", "3", "4", "5"}
 	validate := func(input string) error {
 		if !slices.Contains(possibleQuality, strings.TrimSpace(input)) {
-			return errors.New("Quality must be a number between 1 (lowest) - 5 (highest)")
+			return errors.New("Score must be between 1 (lowest) - 5 (highest)")
 		}
 		return nil
 	}
