@@ -24,6 +24,8 @@ func main() {
 		"Add Card",
 		"Create Deck",
 		"Quit",
+		"Delete Card",
+		"Delete Deck",
 	}
 
 	file := "pankito"
@@ -38,6 +40,7 @@ func main() {
 func OpenMenu(menu []string, db *DB) {
 	menuOptions := SelectOption(menu, "Menu")
 	creationOptions := []string{"Add more", "Return to menu"}
+	deleteOptions := []string{"Continue deleting", "Return to menu"}
 	if menuOptions == menu[0] {
 		ReviewHandler(db, menu)
 	} else if menuOptions == menu[1] {
@@ -46,7 +49,95 @@ func OpenMenu(menu []string, db *DB) {
 		AddDeckHandler(db, creationOptions, menu)
 	} else if menuOptions == menu[3] {
 		os.Exit(0)
+	} else if menuOptions == menu[4] {
+		// DeleteCardHandler(db, deleteOptions)
+	} else if menuOptions == menu[5] {
+		DeleteDeckHandler(db, deleteOptions, menu)
 	}
+
+}
+
+func DeleteDeckHandler(db *DB, deleteOptions []string, menu []string) {
+	decks := GetExistingDecks(db)
+	if len(decks) == 0 {
+		fmt.Print("No decks found 😔 \n ")
+		return
+	}
+	templates := &promptui.SelectTemplates{
+		Active:   "▸ {{.Name }}",
+		Inactive: "  {{.Name| faint }} ",
+		Selected: "✔ {{.Name| green }}",
+	}
+
+	searcher := func(input string, index int) bool {
+		deck := decks[index]
+		name := strings.Replace(strings.ToLower(deck.Name), " ", "", -1)
+		input = strings.Replace(strings.ToLower(input), " ", "", -1)
+
+		return strings.Contains(name, input)
+	}
+	prompt := promptui.Select{
+		Label:             "Decks",
+		Items:             decks,
+		Templates:         templates,
+		Searcher:          searcher,
+		StartInSearchMode: true,
+		HideHelp:          true,
+		Size:              4,
+	}
+
+	i, _, err := prompt.Run()
+
+	if err != nil {
+		log.Fatalf("Prompt failed %v\n", err)
+	}
+
+	ConfirmDelete(db, decks[i].Id)
+
+	j := SelectOption(deleteOptions, "Options")
+	if j == deleteOptions[0] {
+		DeleteDeckHandler(db, deleteOptions, menu)
+	} else if j == deleteOptions[1] {
+		clearConsole()
+		OpenMenu(menu, db)
+	}
+}
+
+func ConfirmDelete(db *DB, deckId int) {
+	prompt := promptui.Prompt{
+		Label:     "Delete",
+		IsConfirm: true,
+		Default:   "y",
+	}
+	validate := func(s string) error {
+		if len(s) == 1 && strings.Contains("YyNn", s) || prompt.Default != "" && len(s) == 0 {
+			return nil
+		}
+		return errors.New("invalid input")
+	}
+	prompt.Validate = validate
+
+	_, err := prompt.Run()
+	confirmed := !errors.Is(err, promptui.ErrAbort)
+	if err != nil && confirmed {
+		fmt.Println("ERROR: ", err)
+		return
+	}
+	if confirmed {
+		DeleteDeck(db, deckId)
+	} else {
+		fmt.Println("Delete cancelled")
+		return
+	}
+}
+
+func DeleteDeck(db *DB, deckId int) {
+	_, err := db.db.Exec("DELETE FROM Decks WHERE Id = ?;", deckId)
+	if err != nil {
+		fmt.Printf("Failed to delete deck id: %v with error: %v", deckId, err)
+		return
+	}
+	fmt.Println("Deck Deleted")
 }
 
 func ReviewHandler(db *DB, menu []string) {
