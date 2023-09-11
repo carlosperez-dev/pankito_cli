@@ -23,9 +23,9 @@ func main() {
 		"Review",
 		"Add Card",
 		"Create Deck",
-		"Quit",
 		"Delete Card",
 		"Delete Deck",
+		"Quit",
 	}
 
 	file := "playita"
@@ -34,7 +34,9 @@ func main() {
 	if err != nil {
 		log.Fatal("Error when starting db", err)
 	}
-	OpenMenu(menu, db)
+	for {
+		OpenMenu(menu, db)
+	}
 }
 
 type DB struct {
@@ -63,29 +65,31 @@ type BaseDeckWithCardCount struct {
 	CardsToReview int
 }
 
+type ReviewDeck struct {
+	Cards []BaseCard
+}
+
 func OpenMenu(menu []string, db *DB) {
 	menuOptions := SelectOption(menu, "Menu")
 	creationOptions := []string{"Add more", "Return to menu"}
 	deleteOptions := []string{"Continue deleting", "Return to menu"}
 	if menuOptions == menu[0] {
-		ReviewHandler(db, menu)
+		ReviewHandler(db)
 	} else if menuOptions == menu[1] {
-		AddCardHandler(db, creationOptions, menu)
+		AddCardHandler(db, creationOptions)
 	} else if menuOptions == menu[2] {
-		AddDeckHandler(db, creationOptions, menu)
+		AddDeckHandler(db, creationOptions)
 	} else if menuOptions == menu[3] {
-		os.Exit(0)
-	} else if menuOptions == menu[4] {
 		// DeleteCardHandler(db, deleteOptions)
+	} else if menuOptions == menu[4] {
+		DeleteDeckHandler(db, deleteOptions)
 	} else if menuOptions == menu[5] {
-		DeleteDeckHandler(db, deleteOptions, menu)
-		OpenMenu(menu, db)
+		os.Exit(0)
 	}
-
 }
 
-func DeleteDeckHandler(db *DB, deleteOptions []string, menu []string) {
-	decks := GetExistingDecks(db)
+func DeleteDeckHandler(db *DB, deletionOptions []string) {
+	decks := db.GetExistingDecks()
 	if len(decks) == 0 {
 		clearConsole()
 		fmt.Print("No decks found 😔 \n ")
@@ -115,19 +119,20 @@ func DeleteDeckHandler(db *DB, deleteOptions []string, menu []string) {
 	}
 
 	i, _, err := prompt.Run()
-
 	if err != nil {
 		log.Fatalf("Prompt failed %v\n", err)
 	}
 
 	ConfirmDelete(db, decks[i].Id)
+	postDeleteDeckMenu(db, deletionOptions)
+}
 
-	j := SelectOption(deleteOptions, "Options")
-	if j == deleteOptions[0] {
-		DeleteDeckHandler(db, deleteOptions, menu)
-	} else if j == deleteOptions[1] {
+func postDeleteDeckMenu(db *DB, deletionOptions []string) {
+	j := SelectOption(deletionOptions, "Options")
+	if j == deletionOptions[0] {
+		DeleteDeckHandler(db, deletionOptions)
+	} else if j == deletionOptions[1] {
 		clearConsole()
-		return
 	}
 }
 
@@ -168,42 +173,49 @@ func DeleteDeck(db *DB, deckId int) {
 	fmt.Println("Deck Deleted")
 }
 
-func ReviewHandler(db *DB, menu []string) {
+func ReviewHandler(db *DB) {
 	deckId := GetDeckOfCardForReview(db)
 	if deckId == 0 {
-		OpenMenu(menu, db)
+		return
 	} else {
-		StartDeckReview(GetCardsToReview(db, deckId), db)
-		OpenMenu(menu, db)
+		deck := db.GetCardsToReview(deckId)
+		deck.Review(db)
+		return
 	}
 }
 
-func AddDeckHandler(db *DB, creationOptions []string, menu []string) {
+func AddDeckHandler(db *DB, creationOptions []string) {
 	deck := CreateDeck()
-	AddNewDeck(db, deck)
+	db.AddNewDeck(deck)
+	postAddDeckMenu(db, creationOptions)
+}
+
+func postAddDeckMenu(db *DB, creationOptions []string) {
 	j := SelectOption(creationOptions, "Options")
 	if j == creationOptions[0] {
-		AddDeckHandler(db, creationOptions, menu)
+		AddDeckHandler(db, creationOptions)
 	} else if j == creationOptions[1] {
 		clearConsole()
-		OpenMenu(menu, db)
 	}
 }
 
-func AddCardHandler(db *DB, creationOptions []string, menu []string, params ...int) {
-	var card BaseCard
+func AddCardHandler(db *DB, creationOptions []string, params ...int) {
+	var card *BaseCard
 	if len(params) == 0 {
 		card = CreateCard(db)
 	} else if len(params) == 1 {
 		card = CreateCard(db, params[0])
 	}
-	AddNewCard(db, card)
+	db.AddNewCard(card)
+	postAddCardMenu(db, creationOptions, card.DeckId)
+}
+
+func postAddCardMenu(db *DB, creationOptions []string, deckId int) {
 	j := SelectOption(creationOptions, "Options")
 	if j == creationOptions[0] {
-		AddCardHandler(db, creationOptions, menu, card.DeckId)
+		AddCardHandler(db, creationOptions)
 	} else if j == creationOptions[1] {
 		clearConsole()
-		OpenMenu(menu, db)
 	}
 }
 
@@ -227,7 +239,7 @@ func newDb(file string) (*DB, error) {
 	}, nil
 }
 
-func AddNewDeck(db *DB, deck BaseDeck) {
+func (db *DB) AddNewDeck(deck *BaseDeck) {
 	stmt := "INSERT INTO Decks(Name) VALUES (?)"
 	if _, err := db.db.Exec(stmt, deck.Name); err != nil {
 		log.Fatal("Failed to execute INSERT", err)
@@ -235,7 +247,7 @@ func AddNewDeck(db *DB, deck BaseDeck) {
 	fmt.Printf("Deck %s succesfully added!", deck.Name)
 }
 
-func AddNewCard(db *DB, card BaseCard) {
+func (db *DB) AddNewCard(card *BaseCard) {
 	stmt := "INSERT INTO Cards(DeckId, Front, Back, Interval, EaseFactor, Repetition, ReviewDate) VALUES (?, ?, ?, ?, ?, ?, ?)"
 	if _, err := db.db.Exec(stmt, card.DeckId, card.Front, card.Back, 0, 2.5, 0, time.Now()); err != nil {
 		log.Fatal("Failed to execute INSERT", err)
@@ -243,30 +255,14 @@ func AddNewCard(db *DB, card BaseCard) {
 	fmt.Printf("Card succesfully added!")
 }
 
-func AddCardsToReview(db *DB) []BaseCard {
-	deck := make([]BaseCard, 0)
-	for i := 0; i < 10; i++ {
-		deck = append(deck, BaseCard{
-			Front:      fmt.Sprintf("Test %v?", i),
-			Back:       fmt.Sprintf("Answer %v", i),
-			Interval:   0,
-			EaseFactor: 2.5,
-			Repetition: 0,
-			ReviewDate: time.Now(),
-		})
-		AddNewCard(db, deck[len(deck)-1])
-	}
-	return deck
-}
-
-func CreateCard(db *DB, params ...int) BaseCard {
+func CreateCard(db *DB, params ...int) *BaseCard {
 	var deckId int
 	if len(params) == 0 {
 		deckId = GetDeckOfCard(db)
 		if deckId == 0 {
 			fmt.Print("Let's create one! \n ")
 			deck := CreateDeck()
-			AddNewDeck(db, deck)
+			db.AddNewDeck(deck)
 			deckId = GetDeckOfCard(db)
 		}
 	} else if len(params) == 1 {
@@ -275,7 +271,7 @@ func CreateCard(db *DB, params ...int) BaseCard {
 	front := GetFrontOfCard()
 	back := GetBackOfCard()
 
-	return BaseCard{
+	return &BaseCard{
 		Id:         0,
 		DeckId:     deckId,
 		Front:      front,
@@ -289,8 +285,9 @@ func CreateCard(db *DB, params ...int) BaseCard {
 }
 
 func GetDeckOfCardForReview(db *DB) int {
-	decks := GetExistingDecksWithCardCount(db)
+	decks := db.GetExistingDecksWithCardCount()
 	if len(decks) == 0 {
+		clearConsole()
 		fmt.Print("No cards to review today 🥳 \n ")
 		return 0
 	}
@@ -323,11 +320,10 @@ func GetDeckOfCardForReview(db *DB) int {
 		log.Fatalf("Prompt failed %v\n", err)
 	}
 	return decks[i].Id
-
 }
 
 func GetDeckOfCard(db *DB) int {
-	decks := GetExistingDecks(db)
+	decks := db.GetExistingDecks()
 	if len(decks) == 0 {
 		fmt.Print("No decks found 😔 \n ")
 		return 0
@@ -364,7 +360,7 @@ func GetDeckOfCard(db *DB) int {
 
 }
 
-func GetExistingDecks(db *DB) []BaseDeck {
+func (db *DB) GetExistingDecks() []BaseDeck {
 	stmt := "SELECT Id, Name FROM Decks ORDER BY Id"
 	rows, err := db.db.Query(stmt)
 	if err != nil {
@@ -373,19 +369,19 @@ func GetExistingDecks(db *DB) []BaseDeck {
 
 	defer rows.Close()
 
-	data := []BaseDeck{}
+	decks := []BaseDeck{}
 	for rows.Next() {
 		i := BaseDeck{}
 		err = rows.Scan(&i.Id, &i.Name)
 		if err != nil {
 			log.Printf("Error occurred whilst mapping decks Id: %v - error: %v", &i.Id, err)
 		}
-		data = append(data, i)
+		decks = append(decks, i)
 	}
-	return data
+	return decks
 }
 
-func GetExistingDecksWithCardCount(db *DB) []BaseDeckWithCardCount {
+func (db *DB) GetExistingDecksWithCardCount() []BaseDeckWithCardCount {
 	stmt := "SELECT Decks.Id, Decks.Name, COUNT(Cards.Id) AS CardCount FROM Decks JOIN Cards ON Cards.DeckId = Decks.Id WHERE datetime(Cards.ReviewDate) <= datetime('now') GROUP BY Decks.Id ORDER BY Decks.Id;"
 	rows, err := db.db.Query(stmt)
 	if err != nil {
@@ -393,21 +389,21 @@ func GetExistingDecksWithCardCount(db *DB) []BaseDeckWithCardCount {
 	}
 	defer rows.Close()
 
-	data := []BaseDeckWithCardCount{}
+	decks := []BaseDeckWithCardCount{}
 	for rows.Next() {
 		i := BaseDeckWithCardCount{}
 		err = rows.Scan(&i.Id, &i.Name, &i.CardsToReview)
 		if err != nil {
 			log.Printf("Error occurred whilst mapping decks Id: %v - error: %v", &i.Id, err)
 		}
-		data = append(data, i)
+		decks = append(decks, i)
 	}
-	return data
+	return decks
 }
 
-func CreateDeck() BaseDeck {
+func CreateDeck() *BaseDeck {
 	name := SetNameOfDeck()
-	return BaseDeck{
+	return &BaseDeck{
 		Id:   0,
 		Name: name,
 	}
@@ -479,7 +475,7 @@ func SetNameOfDeck() string {
 	return result
 }
 
-func GetCardsToReview(db *DB, deckId int) []BaseCard {
+func (db *DB) GetCardsToReview(deckId int) *ReviewDeck {
 	stmt := "SELECT * FROM Cards WHERE datetime(ReviewDate) <= datetime('now') AND DeckId = ? ORDER BY ReviewDate"
 	rows, err := db.db.Query(stmt, deckId)
 	if err != nil {
@@ -488,48 +484,53 @@ func GetCardsToReview(db *DB, deckId int) []BaseCard {
 
 	defer rows.Close()
 
-	data := []BaseCard{}
+	reviewDeck := ReviewDeck{
+		Cards: []BaseCard{},
+	}
 	for rows.Next() {
 		i := BaseCard{}
 		err = rows.Scan(&i.Id, &i.DeckId, &i.Front, &i.Back, &i.Interval, &i.EaseFactor, &i.Repetition, &i.ReviewDate)
 		if err != nil {
 			log.Printf("Error occurred whilst mapping cards Id: %v - error: %v", &i.Id, err)
 		}
-		data = append(data, i)
+		reviewDeck.Cards = append(reviewDeck.Cards, i)
 	}
-	return data
+	return &reviewDeck
 }
 
-func StartDeckReview(deck []BaseCard, db *DB) []BaseCard {
-	if len(deck) == 0 {
+func (d *ReviewDeck) Review(db *DB) *ReviewDeck {
+	if len(d.Cards) == 0 {
 		clearConsole()
 		fmt.Print("Review complete! 🎉 \n ")
 		return nil
 	} else {
-		updatedDeck := ReviewCard(deck, db)
-		return StartDeckReview(updatedDeck, db)
+		d = d.ReviewCard(db)
+		return d.Review(db)
 	}
 }
 
-func UpdateReviewDeck(reviewDeck []BaseCard, pop bool) []BaseCard {
-	updatedReviewDeck := make([]BaseCard, 0)
-	if pop {
-		return append(updatedReviewDeck, reviewDeck[1:]...)
-	} else {
-		updatedReviewDeck = append(updatedReviewDeck, reviewDeck[1:]...)
-		return append(updatedReviewDeck, reviewDeck[0])
+func (d *ReviewDeck) UpdateReviewDeck(pop bool) *ReviewDeck {
+	if len(d.Cards) <= 1 && pop {
+		d.Cards = []BaseCard{}
+		return d
+	} else if pop {
+		d.Cards = d.Cards[1:]
+		return d
 	}
+	firstCard := d.Cards[0]
+	d.Cards = append(d.Cards[1:], firstCard)
+	return d
 }
 
-func ReviewCard(reviewDeck []BaseCard, db *DB) []BaseCard {
+func (d *ReviewDeck) ReviewCard(db *DB) *ReviewDeck {
 	clearConsole()
-	card := &reviewDeck[0]
-	qualityString := ViewFrontAndBack(card)
+	card := &d.Cards[0]
+	qualityString := card.ViewFrontAndBack()
 	quality := ParseInput(qualityString)
-	pop := UpdateCard(card, quality, db)
+	pop := card.UpdateCard(quality, db)
 	clearConsole()
 
-	return UpdateReviewDeck(reviewDeck, pop)
+	return d.UpdateReviewDeck(pop)
 }
 
 func clearConsole() {
@@ -538,9 +539,9 @@ func clearConsole() {
 	c.Run()
 }
 
-func ViewFrontAndBack(card *BaseCard) string {
-	ViewFront(card)
-	ViewBack(card)
+func (c *BaseCard) ViewFrontAndBack() string {
+	ViewFront(c)
+	ViewBack(c)
 	input := SelectQuality()
 	return input
 }
@@ -559,8 +560,6 @@ func ViewBack(card *BaseCard) {
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
-
-	// Print the answer after Enter is pressed.
 	fmt.Println(card.Back)
 }
 
@@ -592,7 +591,7 @@ func SelectQuality() string {
 	possibleQuality := []string{"1", "2", "3", "4", "5"}
 	validate := func(input string) error {
 		if !slices.Contains(possibleQuality, strings.TrimSpace(input)) {
-			return errors.New("Score must be between 1 (lowest) - 5 (highest)")
+			return errors.New("score must be between 1 (lowest) - 5 (highest)")
 		}
 		return nil
 	}
@@ -610,25 +609,25 @@ func SelectQuality() string {
 	return result
 }
 
-func UpdateCard(card *BaseCard, quality float32, db *DB) bool {
+func (c *BaseCard) UpdateCard(quality float32, db *DB) bool {
 	if quality > 3 {
-		card.Repetition = card.Repetition + 1
-		card.EaseFactor = CalculateEaseFactor(card.EaseFactor, quality)
-		card.Interval = CalculateInterval(card.Repetition, card.Interval, card.EaseFactor)
-		card.ReviewDate = truncateToDay(card.ReviewDate.AddDate(0, 0, card.Interval))
-		_, err := db.db.Exec("UPDATE Cards SET Repetition = ?, EaseFactor = ?, Interval = ?, ReviewDate = ? WHERE Id = ?;", card.Repetition, card.EaseFactor, card.Interval, card.ReviewDate, card.Id)
+		c.Repetition = c.Repetition + 1
+		c.EaseFactor = CalculateEaseFactor(c.EaseFactor, quality)
+		c.Interval = CalculateInterval(c.Repetition, c.Interval, c.EaseFactor)
+		c.ReviewDate = truncateToDay(c.ReviewDate.AddDate(0, 0, c.Interval))
+		_, err := db.db.Exec("UPDATE Cards SET Repetition = ?, EaseFactor = ?, Interval = ?, ReviewDate = ? WHERE Id = ?;", c.Repetition, c.EaseFactor, c.Interval, c.ReviewDate, c.Id)
 		if err != nil {
-			fmt.Printf("Failed to update card Id: %v with error: %v", card.Id, err)
+			fmt.Printf("Failed to update card Id: %v with error: %v", c.Id, err)
 		}
 		return true
 	}
 
-	card.Repetition = 0
-	card.EaseFactor = CalculateEaseFactor(card.EaseFactor, quality)
-	card.Interval = CalculateInterval(card.Repetition, card.Interval, card.EaseFactor)
-	_, err := db.db.Exec("UPDATE Cards SET Repetition = ?, EaseFactor = ?, Interval = ? WHERE Id = ?;", card.Repetition, card.EaseFactor, card.Interval, card.Id)
+	c.Repetition = 0
+	c.EaseFactor = CalculateEaseFactor(c.EaseFactor, quality)
+	c.Interval = CalculateInterval(c.Repetition, c.Interval, c.EaseFactor)
+	_, err := db.db.Exec("UPDATE Cards SET Repetition = ?, EaseFactor = ?, Interval = ? WHERE Id = ?;", c.Repetition, c.EaseFactor, c.Interval, c.Id)
 	if err != nil {
-		fmt.Printf("Failed to update card Id: %v with error: %v", card.Id, err)
+		fmt.Printf("Failed to update card Id: %v with error: %v", c.Id, err)
 	}
 
 	return false
