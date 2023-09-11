@@ -28,13 +28,39 @@ func main() {
 		"Delete Deck",
 	}
 
-	file := "pankito"
+	file := "playita"
 
 	db, err := newDb(file)
 	if err != nil {
 		log.Fatal("Error when starting db", err)
 	}
 	OpenMenu(menu, db)
+}
+
+type DB struct {
+	db *sql.DB
+}
+
+type BaseCard struct {
+	Id         int
+	DeckId     int
+	Front      string
+	Back       string
+	Interval   int
+	EaseFactor float32
+	Repetition int
+	ReviewDate time.Time
+}
+
+type BaseDeck struct {
+	Id   int
+	Name string
+}
+
+type BaseDeckWithCardCount struct {
+	Id            int
+	Name          string
+	CardsToReview int
 }
 
 func OpenMenu(menu []string, db *DB) {
@@ -53,6 +79,7 @@ func OpenMenu(menu []string, db *DB) {
 		// DeleteCardHandler(db, deleteOptions)
 	} else if menuOptions == menu[5] {
 		DeleteDeckHandler(db, deleteOptions, menu)
+		OpenMenu(menu, db)
 	}
 
 }
@@ -60,6 +87,7 @@ func OpenMenu(menu []string, db *DB) {
 func DeleteDeckHandler(db *DB, deleteOptions []string, menu []string) {
 	decks := GetExistingDecks(db)
 	if len(decks) == 0 {
+		clearConsole()
 		fmt.Print("No decks found 😔 \n ")
 		return
 	}
@@ -99,7 +127,7 @@ func DeleteDeckHandler(db *DB, deleteOptions []string, menu []string) {
 		DeleteDeckHandler(db, deleteOptions, menu)
 	} else if j == deleteOptions[1] {
 		clearConsole()
-		OpenMenu(menu, db)
+		return
 	}
 }
 
@@ -177,32 +205,6 @@ func AddCardHandler(db *DB, creationOptions []string, menu []string, params ...i
 		clearConsole()
 		OpenMenu(menu, db)
 	}
-}
-
-type DB struct {
-	db *sql.DB
-}
-
-type BaseCard struct {
-	Id         int
-	DeckId     int
-	Front      string
-	Back       string
-	Interval   int
-	EaseFactor float32
-	Repetition int
-	ReviewDate time.Time
-}
-
-type BaseDeck struct {
-	Id   int
-	Name string
-}
-
-type BaseDeckWithCardCount struct {
-	Id            int
-	Name          string
-	CardsToReview int
 }
 
 func newDb(file string) (*DB, error) {
