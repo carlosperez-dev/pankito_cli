@@ -70,7 +70,7 @@ type ReviewDeck struct {
 }
 
 func OpenMenu(menu []string, db *DB) {
-	menuOptions := SelectOption(menu, "Menu")
+	menuOptions := selectOption(menu, "Menu")
 	creationOptions := []string{"Add more", "Return to menu"}
 	deleteOptions := []string{"Continue deleting", "Return to menu"}
 	if menuOptions == menu[0] {
@@ -89,7 +89,7 @@ func OpenMenu(menu []string, db *DB) {
 }
 
 func DeleteDeckHandler(db *DB, deletionOptions []string) {
-	decks := db.GetExistingDecks()
+	decks := db.getExistingDecks()
 	if len(decks) == 0 {
 		clearConsole()
 		fmt.Print("No decks found 😔 \n ")
@@ -123,12 +123,12 @@ func DeleteDeckHandler(db *DB, deletionOptions []string) {
 		log.Fatalf("Prompt failed %v\n", err)
 	}
 
-	ConfirmDelete(db, decks[i].Id)
+	confirmDelete(db, decks[i].Id)
 	postDeleteDeckMenu(db, deletionOptions)
 }
 
 func postDeleteDeckMenu(db *DB, deletionOptions []string) {
-	j := SelectOption(deletionOptions, "Options")
+	j := selectOption(deletionOptions, "Options")
 	if j == deletionOptions[0] {
 		DeleteDeckHandler(db, deletionOptions)
 	} else if j == deletionOptions[1] {
@@ -136,7 +136,7 @@ func postDeleteDeckMenu(db *DB, deletionOptions []string) {
 	}
 }
 
-func ConfirmDelete(db *DB, deckId int) {
+func confirmDelete(db *DB, deckId int) {
 	prompt := promptui.Prompt{
 		Label:     "Delete",
 		IsConfirm: true,
@@ -157,14 +157,14 @@ func ConfirmDelete(db *DB, deckId int) {
 		return
 	}
 	if confirmed {
-		DeleteDeck(db, deckId)
+		deleteDeck(db, deckId)
 	} else {
 		fmt.Println("Delete cancelled")
 		return
 	}
 }
 
-func DeleteDeck(db *DB, deckId int) {
+func deleteDeck(db *DB, deckId int) {
 	_, err := db.db.Exec("DELETE FROM Decks WHERE Id = ?;", deckId)
 	if err != nil {
 		fmt.Printf("Failed to delete deck id: %v with error: %v", deckId, err)
@@ -174,24 +174,24 @@ func DeleteDeck(db *DB, deckId int) {
 }
 
 func ReviewHandler(db *DB) {
-	deckId := GetDeckOfCardForReview(db)
+	deckId := getDeckOfCardForReview(db)
 	if deckId == 0 {
 		return
 	} else {
-		deck := db.GetCardsToReview(deckId)
-		deck.Review(db)
+		deck := db.getCardsToReview(deckId)
+		deck.review(db)
 		return
 	}
 }
 
 func AddDeckHandler(db *DB, creationOptions []string) {
-	deck := CreateDeck()
-	db.AddNewDeck(deck)
+	deck := createDeck()
+	db.addNewDeck(deck)
 	postAddDeckMenu(db, creationOptions)
 }
 
 func postAddDeckMenu(db *DB, creationOptions []string) {
-	j := SelectOption(creationOptions, "Options")
+	j := selectOption(creationOptions, "Options")
 	if j == creationOptions[0] {
 		AddDeckHandler(db, creationOptions)
 	} else if j == creationOptions[1] {
@@ -202,16 +202,16 @@ func postAddDeckMenu(db *DB, creationOptions []string) {
 func AddCardHandler(db *DB, creationOptions []string, params ...int) {
 	var card *BaseCard
 	if len(params) == 0 {
-		card = CreateCard(db)
+		card = createCard(db)
 	} else if len(params) == 1 {
-		card = CreateCard(db, params[0])
+		card = createCard(db, params[0])
 	}
-	db.AddNewCard(card)
+	db.addNewCard(card)
 	postAddCardMenu(db, creationOptions, card.DeckId)
 }
 
 func postAddCardMenu(db *DB, creationOptions []string, deckId int) {
-	j := SelectOption(creationOptions, "Options")
+	j := selectOption(creationOptions, "Options")
 	if j == creationOptions[0] {
 		AddCardHandler(db, creationOptions)
 	} else if j == creationOptions[1] {
@@ -239,7 +239,7 @@ func newDb(file string) (*DB, error) {
 	}, nil
 }
 
-func (db *DB) AddNewDeck(deck *BaseDeck) {
+func (db *DB) addNewDeck(deck *BaseDeck) {
 	stmt := "INSERT INTO Decks(Name) VALUES (?)"
 	if _, err := db.db.Exec(stmt, deck.Name); err != nil {
 		log.Fatal("Failed to execute INSERT", err)
@@ -247,7 +247,7 @@ func (db *DB) AddNewDeck(deck *BaseDeck) {
 	fmt.Printf("Deck %s succesfully added!", deck.Name)
 }
 
-func (db *DB) AddNewCard(card *BaseCard) {
+func (db *DB) addNewCard(card *BaseCard) {
 	stmt := "INSERT INTO Cards(DeckId, Front, Back, Interval, EaseFactor, Repetition, ReviewDate) VALUES (?, ?, ?, ?, ?, ?, ?)"
 	if _, err := db.db.Exec(stmt, card.DeckId, card.Front, card.Back, 0, 2.5, 0, time.Now()); err != nil {
 		log.Fatal("Failed to execute INSERT", err)
@@ -255,21 +255,21 @@ func (db *DB) AddNewCard(card *BaseCard) {
 	fmt.Printf("Card succesfully added!")
 }
 
-func CreateCard(db *DB, params ...int) *BaseCard {
+func createCard(db *DB, params ...int) *BaseCard {
 	var deckId int
 	if len(params) == 0 {
-		deckId = GetDeckOfCard(db)
+		deckId = getDeckOfCard(db)
 		if deckId == 0 {
 			fmt.Print("Let's create one! \n ")
-			deck := CreateDeck()
-			db.AddNewDeck(deck)
-			deckId = GetDeckOfCard(db)
+			deck := createDeck()
+			db.addNewDeck(deck)
+			deckId = getDeckOfCard(db)
 		}
 	} else if len(params) == 1 {
 		deckId = params[0]
 	}
-	front := GetFrontOfCard()
-	back := GetBackOfCard()
+	front := getFrontOfCard()
+	back := getBackOfCard()
 
 	return &BaseCard{
 		Id:         0,
@@ -284,8 +284,8 @@ func CreateCard(db *DB, params ...int) *BaseCard {
 
 }
 
-func GetDeckOfCardForReview(db *DB) int {
-	decks := db.GetExistingDecksWithCardCount()
+func getDeckOfCardForReview(db *DB) int {
+	decks := db.getExistingDecksWithCardCount()
 	if len(decks) == 0 {
 		clearConsole()
 		fmt.Print("No cards to review today 🥳 \n ")
@@ -322,8 +322,8 @@ func GetDeckOfCardForReview(db *DB) int {
 	return decks[i].Id
 }
 
-func GetDeckOfCard(db *DB) int {
-	decks := db.GetExistingDecks()
+func getDeckOfCard(db *DB) int {
+	decks := db.getExistingDecks()
 	if len(decks) == 0 {
 		fmt.Print("No decks found 😔 \n ")
 		return 0
@@ -360,7 +360,7 @@ func GetDeckOfCard(db *DB) int {
 
 }
 
-func (db *DB) GetExistingDecks() []BaseDeck {
+func (db *DB) getExistingDecks() []BaseDeck {
 	stmt := "SELECT Id, Name FROM Decks ORDER BY Id"
 	rows, err := db.db.Query(stmt)
 	if err != nil {
@@ -381,7 +381,7 @@ func (db *DB) GetExistingDecks() []BaseDeck {
 	return decks
 }
 
-func (db *DB) GetExistingDecksWithCardCount() []BaseDeckWithCardCount {
+func (db *DB) getExistingDecksWithCardCount() []BaseDeckWithCardCount {
 	stmt := "SELECT Decks.Id, Decks.Name, COUNT(Cards.Id) AS CardCount FROM Decks JOIN Cards ON Cards.DeckId = Decks.Id WHERE datetime(Cards.ReviewDate) <= datetime('now') GROUP BY Decks.Id ORDER BY Decks.Id;"
 	rows, err := db.db.Query(stmt)
 	if err != nil {
@@ -401,15 +401,15 @@ func (db *DB) GetExistingDecksWithCardCount() []BaseDeckWithCardCount {
 	return decks
 }
 
-func CreateDeck() *BaseDeck {
-	name := SetNameOfDeck()
+func createDeck() *BaseDeck {
+	name := setNameOfDeck()
 	return &BaseDeck{
 		Id:   0,
 		Name: name,
 	}
 }
 
-func GetBackOfCard() string {
+func getBackOfCard() string {
 	validate := func(input string) error {
 		if len(input) == 0 {
 			return errors.New("back of card cannot be empty")
@@ -431,7 +431,7 @@ func GetBackOfCard() string {
 	return result
 }
 
-func GetFrontOfCard() string {
+func getFrontOfCard() string {
 	validate := func(input string) error {
 		if len(input) == 0 {
 			return errors.New("front of card cannot be empty")
@@ -453,7 +453,7 @@ func GetFrontOfCard() string {
 	return result
 }
 
-func SetNameOfDeck() string {
+func setNameOfDeck() string {
 	validate := func(input string) error {
 		if len(input) == 0 {
 			return errors.New("name of deck cannot be empty")
@@ -475,7 +475,7 @@ func SetNameOfDeck() string {
 	return result
 }
 
-func (db *DB) GetCardsToReview(deckId int) *ReviewDeck {
+func (db *DB) getCardsToReview(deckId int) *ReviewDeck {
 	stmt := "SELECT * FROM Cards WHERE datetime(ReviewDate) <= datetime('now') AND DeckId = ? ORDER BY ReviewDate"
 	rows, err := db.db.Query(stmt, deckId)
 	if err != nil {
@@ -498,18 +498,18 @@ func (db *DB) GetCardsToReview(deckId int) *ReviewDeck {
 	return &reviewDeck
 }
 
-func (d *ReviewDeck) Review(db *DB) *ReviewDeck {
+func (d *ReviewDeck) review(db *DB) *ReviewDeck {
 	if len(d.Cards) == 0 {
 		clearConsole()
 		fmt.Print("Review complete! 🎉 \n ")
 		return nil
 	} else {
-		d = d.ReviewCard(db)
-		return d.Review(db)
+		d = d.reviewCard(db)
+		return d.review(db)
 	}
 }
 
-func (d *ReviewDeck) UpdateReviewDeck(pop bool) *ReviewDeck {
+func (d *ReviewDeck) updateReviewDeck(pop bool) *ReviewDeck {
 	if len(d.Cards) <= 1 && pop {
 		d.Cards = []BaseCard{}
 		return d
@@ -522,15 +522,15 @@ func (d *ReviewDeck) UpdateReviewDeck(pop bool) *ReviewDeck {
 	return d
 }
 
-func (d *ReviewDeck) ReviewCard(db *DB) *ReviewDeck {
+func (d *ReviewDeck) reviewCard(db *DB) *ReviewDeck {
 	clearConsole()
 	card := &d.Cards[0]
-	qualityString := card.ViewFrontAndBack()
-	quality := ParseInput(qualityString)
-	pop := card.UpdateCard(quality, db)
+	qualityString := card.viewFrontAndBack()
+	quality := parseInput(qualityString)
+	pop := card.updateCard(quality, db)
 	clearConsole()
 
-	return d.UpdateReviewDeck(pop)
+	return d.updateReviewDeck(pop)
 }
 
 func clearConsole() {
@@ -539,18 +539,18 @@ func clearConsole() {
 	c.Run()
 }
 
-func (c *BaseCard) ViewFrontAndBack() string {
-	ViewFront(c)
-	ViewBack(c)
-	input := SelectQuality()
+func (c *BaseCard) viewFrontAndBack() string {
+	viewFront(c)
+	viewBack(c)
+	input := selectQuality()
 	return input
 }
 
-func ViewFront(card *BaseCard) {
+func viewFront(card *BaseCard) {
 	fmt.Println(card.Front)
 }
 
-func ViewBack(card *BaseCard) {
+func viewBack(card *BaseCard) {
 	prompt := promptui.Prompt{
 		Label:     "Press 'Enter' to show answer",
 		IsConfirm: false,
@@ -563,7 +563,7 @@ func ViewBack(card *BaseCard) {
 	fmt.Println(card.Back)
 }
 
-func SelectOption(menu []string, label string) string {
+func selectOption(menu []string, label string) string {
 	templates := &promptui.SelectTemplates{
 		Active:   "▸ {{ . }}",
 		Inactive: "  {{ . | faint }}",
@@ -587,7 +587,7 @@ func SelectOption(menu []string, label string) string {
 	return result
 }
 
-func SelectQuality() string {
+func selectQuality() string {
 	possibleQuality := []string{"1", "2", "3", "4", "5"}
 	validate := func(input string) error {
 		if !slices.Contains(possibleQuality, strings.TrimSpace(input)) {
@@ -609,11 +609,11 @@ func SelectQuality() string {
 	return result
 }
 
-func (c *BaseCard) UpdateCard(quality float32, db *DB) bool {
+func (c *BaseCard) updateCard(quality float32, db *DB) bool {
 	if quality > 3 {
 		c.Repetition = c.Repetition + 1
-		c.EaseFactor = CalculateEaseFactor(c.EaseFactor, quality)
-		c.Interval = CalculateInterval(c.Repetition, c.Interval, c.EaseFactor)
+		c.EaseFactor = calculateEaseFactor(c.EaseFactor, quality)
+		c.Interval = calculateInterval(c.Repetition, c.Interval, c.EaseFactor)
 		c.ReviewDate = truncateToDay(c.ReviewDate.AddDate(0, 0, c.Interval))
 		_, err := db.db.Exec("UPDATE Cards SET Repetition = ?, EaseFactor = ?, Interval = ?, ReviewDate = ? WHERE Id = ?;", c.Repetition, c.EaseFactor, c.Interval, c.ReviewDate, c.Id)
 		if err != nil {
@@ -623,8 +623,8 @@ func (c *BaseCard) UpdateCard(quality float32, db *DB) bool {
 	}
 
 	c.Repetition = 0
-	c.EaseFactor = CalculateEaseFactor(c.EaseFactor, quality)
-	c.Interval = CalculateInterval(c.Repetition, c.Interval, c.EaseFactor)
+	c.EaseFactor = calculateEaseFactor(c.EaseFactor, quality)
+	c.Interval = calculateInterval(c.Repetition, c.Interval, c.EaseFactor)
 	_, err := db.db.Exec("UPDATE Cards SET Repetition = ?, EaseFactor = ?, Interval = ? WHERE Id = ?;", c.Repetition, c.EaseFactor, c.Interval, c.Id)
 	if err != nil {
 		fmt.Printf("Failed to update card Id: %v with error: %v", c.Id, err)
@@ -633,7 +633,7 @@ func (c *BaseCard) UpdateCard(quality float32, db *DB) bool {
 	return false
 }
 
-func ParseInput(input string) float32 {
+func parseInput(input string) float32 {
 	input = strings.TrimSpace(input)
 	quality64, err := strconv.ParseFloat(input, 32)
 	if err != nil {
@@ -643,7 +643,7 @@ func ParseInput(input string) float32 {
 	return quality
 }
 
-func CalculateEaseFactor(ef float32, quality float32) float32 {
+func calculateEaseFactor(ef float32, quality float32) float32 {
 	updatedEaseFactor := (ef) + (0.1 - (5-quality)*(0.8+(5-quality)*0.02))
 	if updatedEaseFactor < 1.3 {
 		return float32(1.3)
@@ -651,7 +651,7 @@ func CalculateEaseFactor(ef float32, quality float32) float32 {
 	return updatedEaseFactor
 }
 
-func CalculateInterval(repetition int, previousInterval int, ef float32) int {
+func calculateInterval(repetition int, previousInterval int, ef float32) int {
 	if repetition <= 1 {
 		return 1
 	} else if repetition == 2 {
