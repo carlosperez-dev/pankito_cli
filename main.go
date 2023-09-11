@@ -260,7 +260,7 @@ func createCard(db *DB, params ...int) *BaseCard {
 	if len(params) == 0 {
 		deckId = getDeckOfCard(db)
 		if deckId == 0 {
-			fmt.Print("Let's create one! \n ")
+			fmt.Print("First create a deck \n ")
 			deck := createDeck()
 			db.addNewDeck(deck)
 			deckId = getDeckOfCard(db)
