@@ -80,12 +80,86 @@ func OpenMenu(menu []string, db *DB) {
 	} else if menuOptions == menu[2] {
 		AddDeckHandler(db, creationOptions)
 	} else if menuOptions == menu[3] {
-		// DeleteCardHandler(db, deleteOptions)
+		DeleteCardHandler(db, deleteOptions)
 	} else if menuOptions == menu[4] {
 		DeleteDeckHandler(db, deleteOptions)
 	} else if menuOptions == menu[5] {
 		os.Exit(0)
 	}
+}
+
+func DeleteCardHandler(db *DB, deleteOptions []string) {
+	deckId := getDeckOfCard(db)
+	fmt.Printf("Selected deck id: %v", deckId)
+	deck := getCardsFromDeck(db, deckId)
+
+	if len(deck.Cards) == 0 {
+		clearConsole()
+		fmt.Print("No cards in deck \n ")
+		return
+	}
+	templates := &promptui.SelectTemplates{
+		Active:   "▸ {{.Front}} {{.Back}}",
+		Inactive: "  {{.Front | faint}} {{.Back | faint}}",
+		Selected: "✔ {{.Front | green}} {{.Back | green}}",
+	}
+
+	searcher := func(input string, index int) bool {
+		card := deck.Cards[index]
+		name := strings.Replace(strings.ToLower(card.Front+card.Back), " ", "", -1)
+		input = strings.Replace(strings.ToLower(input), " ", "", -1)
+
+		return strings.Contains(name, input)
+	}
+
+	prompt := promptui.Select{
+		Label:             "Cards from deck",
+		Items:             deck.Cards,
+		Templates:         templates,
+		Searcher:          searcher,
+		StartInSearchMode: true,
+		HideHelp:          true,
+		Size:              4,
+	}
+
+	i, _, err := prompt.Run()
+	if err != nil {
+		log.Fatalf("Prompt failed %v\n", err)
+	}
+	confirmCardDelete(db, deck.Cards[i].Id)
+
+}
+
+func getCardsFromDeck(db *DB, deckId int) *ReviewDeck {
+	stmt := "SELECT * FROM Cards WHERE DeckId = ?"
+	rows, err := db.db.Query(stmt, deckId)
+	if err != nil {
+		log.Fatal("Error querying for cards", err)
+	}
+
+	defer rows.Close()
+
+	reviewDeck := ReviewDeck{
+		Cards: []BaseCard{},
+	}
+	for rows.Next() {
+		i := BaseCard{}
+		err = rows.Scan(&i.Id, &i.DeckId, &i.Front, &i.Back, &i.Interval, &i.EaseFactor, &i.Repetition, &i.ReviewDate)
+		if err != nil {
+			log.Printf("Error occurred whilst mapping cards Id: %v - error: %v", &i.Id, err)
+		}
+		reviewDeck.Cards = append(reviewDeck.Cards, i)
+	}
+	return &reviewDeck
+}
+
+func deleteCard(db *DB, cardId int) {
+	_, err := db.db.Exec("DELETE FROM Cards WHERE Id = ?;", cardId)
+	if err != nil {
+		fmt.Printf("Failed to delete deck id: %v with error: %v", cardId, err)
+		return
+	}
+	fmt.Println("Card Deleted")
 }
 
 func DeleteDeckHandler(db *DB, deletionOptions []string) {
@@ -164,6 +238,34 @@ func confirmDelete(db *DB, deckId int) {
 	}
 }
 
+func confirmCardDelete(db *DB, cardId int) {
+	prompt := promptui.Prompt{
+		Label:     "Delete",
+		IsConfirm: true,
+		Default:   "y",
+	}
+	validate := func(s string) error {
+		if len(s) == 1 && strings.Contains("YyNn", s) || prompt.Default != "" && len(s) == 0 {
+			return nil
+		}
+		return errors.New("invalid input")
+	}
+	prompt.Validate = validate
+
+	_, err := prompt.Run()
+	confirmed := !errors.Is(err, promptui.ErrAbort)
+	if err != nil && confirmed {
+		fmt.Println("ERROR: ", err)
+		return
+	}
+	if confirmed {
+		deleteCard(db, cardId)
+	} else {
+		fmt.Println("Delete cancelled")
+		return
+	}
+}
+
 func deleteDeck(db *DB, deckId int) {
 	_, err := db.db.Exec("DELETE FROM Decks WHERE Id = ?;", deckId)
 	if err != nil {
@@ -213,7 +315,7 @@ func AddCardHandler(db *DB, creationOptions []string, params ...int) {
 func postAddCardMenu(db *DB, creationOptions []string, deckId int) {
 	j := selectOption(creationOptions, "Options")
 	if j == creationOptions[0] {
-		AddCardHandler(db, creationOptions)
+		AddCardHandler(db, creationOptions, deckId)
 	} else if j == creationOptions[1] {
 		clearConsole()
 	}
