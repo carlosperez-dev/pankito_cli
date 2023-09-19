@@ -1,4 +1,4 @@
-module github.com/carlosperez-dev/pankito_cli
+module github.com/carlosperez-dev/playita_cli
 
 go 1.20
 
