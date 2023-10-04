@@ -18,7 +18,7 @@ universal_binaries:
   - replace: true
 
 brews:
-  - name: playita-cli
+  - name: playita
     description: "Space repetition in the terminal"
     homepage: "https://github.com/carlosperez-dev/playita_cli"
     tap:
