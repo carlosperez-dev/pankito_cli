@@ -1,4 +1,4 @@
-# Pankit cli  
+# Playita CLI  
 I have been a user of [Anki](https://github.com/ankitects/anki) for the last 3 years and became curious about the inner workings of the SuperMemo algorithm it uses under the hood as a means to reset the [forgetting curve](https://www.growthengineering.co.uk/what-is-the-forgetting-curve/). Thus I decided to create a CLI application that implements said algorithm and persists the data to an SQLite database. 
 
 ## Why Go?
