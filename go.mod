@@ -1,6 +1,6 @@
 module github.com/carlosperez-dev/playita_cli
 
-go 1.21.1
+go 1.21
 
 require (
 	github.com/manifoldco/promptui v0.9.0
