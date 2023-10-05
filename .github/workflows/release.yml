@@ -35,7 +35,7 @@ jobs:
         with:
           name: playita-linux
           path: dist/playita*
-  build-mac-binary:
+  build-darwin-binary:
     runs-on: macos-latest
     steps:
       - name: Checkout
@@ -50,7 +50,7 @@ jobs:
           # either 'goreleaser' (default) or 'goreleaser-pro'
           distribution: goreleaser
           version: ${{ env.GITHUB_REF_NAME }}
-          args: release --clean --skip-publish
+          args: release --clean --skip-publish --config .goreleaser-darwin.yml
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISHER_TOKEN }}
           # Your GoReleaser Pro key, if you are using the 'goreleaser-pro' distribution
@@ -60,3 +60,34 @@ jobs:
         with:
           name: playita-darwin
           path: dist/playita*
+  release:
+    needs: [build-linux-binary, build-darwin-binary]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: 1.21.1
+      - name: Download linux binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: playita-linux
+          path: ./playita-build/linux
+      - name: Download darwin binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: playita-darwin
+          path: ./playita-build/darwin
+      - name: Merge checksum file
+        run: |
+          cd ./playita-build
+          cat ./darwin/checksums.txt >> checksums.txt
+          cat ./linux/checksums.txt >> checksums.txt
+          rm ./darwin/checksums.txt
+          rm ./linux/checksums.txt
+      - name: Release
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          args: release --config scripts/.goreleaser-release.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
