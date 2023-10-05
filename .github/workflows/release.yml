@@ -20,7 +20,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Run xgo
-        uses: crazy-max/ghaction-xgo@v1
+        uses: crazy-max/ghaction-xgo@v3
         with:
           xgo_version: latest
           go_version: 1.21
@@ -30,6 +30,7 @@ jobs:
           v: true
           x: false
           ldflags: -s -w
+          trimpath: true
 
       # - name: Move artifacts
       #   run: |
