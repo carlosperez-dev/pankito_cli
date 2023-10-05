@@ -34,9 +34,9 @@ jobs:
 
       - name: Move artifacts
         run: |
-          mv /build/playita_linux_amd64 /dist/playita_linux_amd64
-          mv /build/playita_darwin_arm64 /dist/playita_darwin_arm64
-          mv /build/playita_windows_amd64.exe /dist/playita_windows_amd64.exe
+          mv build/playita_linux_amd64 dist/playita_linux_amd64
+          mv build/playita_darwin_arm64 dist/playita_darwin_arm64
+          mv build/playita_windows_amd64.exe dist/playita_windows_amd64.exe
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
@@ -53,6 +53,3 @@ jobs:
       #   with:
       #     name: playita
       #     path: ./dist/*
-
-      # Your GoReleaser Pro key, if you are using the 'goreleaser-pro' distribution
-      # GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
