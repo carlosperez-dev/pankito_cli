@@ -83,6 +83,6 @@ jobs:
       - name: Release
         uses: goreleaser/goreleaser-action@v5
         with:
-          args: release --clean --config .goreleaser-release.yml
+          args: release --config .goreleaser-release.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
