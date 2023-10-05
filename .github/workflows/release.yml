@@ -5,6 +5,8 @@ name: goreleaser
 
 on:
   push:
+    tags:
+      - "*"
 
 permissions:
   contents: write
@@ -81,6 +83,7 @@ jobs:
       - name: Merge checksum file
         run: |
           cd ./playita-build
+          touch checksums.txt
           cat ./darwin/checksums.txt >> checksums.txt
           cat ./linux/checksums.txt >> checksums.txt
           rm ./darwin/checksums.txt
