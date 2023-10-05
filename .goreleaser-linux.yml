@@ -10,6 +10,9 @@ builds:
     flags:
       - -mod=vendor
 
+release:
+  prerelease: auto
+
 brews:
   - name: playita
     description: "Space repetition in the terminal"
@@ -22,5 +25,5 @@ brews:
       email: 67346082+carlosperez-dev@users.noreply.github.com
     install: bin.install "playita"
 
-release:
-  prerelease: auto
+checksum:
+  name_template: "checksums-linux.txt"

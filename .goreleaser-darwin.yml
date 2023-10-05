@@ -40,3 +40,6 @@ brews:
       name: carlosperez-dev
       email: 67346082+carlosperez-dev@users.noreply.github.com
     install: bin.install "playita"
+
+checksum:
+  name_template: "checksums-darwin.txt"
