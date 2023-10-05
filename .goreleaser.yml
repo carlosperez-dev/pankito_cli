@@ -1,5 +1,4 @@
 builds:
-  - id: "playita"
   - binary: playita
     goos:
       - darwin
@@ -28,8 +27,7 @@ brews:
     commit_author:
       name: carlosperez-dev
       email: 67346082+carlosperez-dev@users.noreply.github.com
-    install: |
-      bin.install "playita"
+    install: bin.install "playita"
 
 checksum:
   name_template: "checksums.txt"
