@@ -34,9 +34,9 @@ jobs:
 
       # - name: Move artifacts
       #   run: |
-      #     mv ./dist/linux/amd64/playita ./dist/playita_linux_amd64
-      #     mv ./dist/darwin/amd64/playita ./dist/playita_darwin_amd64
-      #     mv ./dist/windows/amd64/playita.exe ./dist/playita_windows_amd64.exe
+      #     mv /build/playita_linux_amd64 /dist/playita_linux_amd64
+      #     mv /build/playita_darwin_amd64 /dist/playita_darwin_amd64
+      #     mv /build/playita_windows_amd64.exe /dist/playita_windows_amd64.exe
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
