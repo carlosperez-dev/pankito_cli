@@ -17,6 +17,10 @@ release:
 universal_binaries:
   - id: playita
   - replace: true
+  - ids:
+      - build1
+      - build2
+  - name_template: "{{.ProjectName}}_{{.Version}}"
 
 brews:
   - name: playita
