@@ -19,16 +19,33 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@v4
+      - name: Run xgo
+        uses: crazy-max/ghaction-xgo@v1
+        with:
+          go-version: "1.21.1"
+          platforms: "linux/amd64,darwin/amd64,windows/amd64"
+
+      - name: Move artifacts
+        run: |
+          mv ./dist/linux/amd64/playita ./dist/playita_linux_amd64
+          mv ./dist/darwin/amd64/playita ./dist/playita_darwin_amd64
+          mv ./dist/windows/amd64/playita.exe ./dist/playita_windows_amd64.exe
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:
           # either 'goreleaser' (default) or 'goreleaser-pro'
           distribution: goreleaser
           version: ${{ env.GITHUB_REF_NAME }}
-          args: release --clean
+          args: release --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISHER_TOKEN }}
-          # Your GoReleaser Pro key, if you are using the 'goreleaser-pro' distribution
-          # GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+
+      # - name: Upload assets
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: playita
+      #     path: ./dist/*
+
+      # Your GoReleaser Pro key, if you are using the 'goreleaser-pro' distribution
+      # GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
