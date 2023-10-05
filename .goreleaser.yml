@@ -1,4 +1,5 @@
 builds:
+  - id: "playita"
   - binary: playita
     goos:
       - darwin
@@ -15,13 +16,8 @@ release:
   prerelease: auto
 
 universal_binaries:
-  - id: playita
   - replace: true
-  - ids:
-      - build1
-      - build2
-  - name_template: "{{.ProjectName}}_{{.Version}}"
-
+  
 brews:
   - name: playita
     description: "Space repetition in the terminal"
