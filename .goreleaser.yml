@@ -15,6 +15,7 @@ release:
   prerelease: auto
 
 universal_binaries:
+  - id: playita
   - replace: true
 
 brews:
