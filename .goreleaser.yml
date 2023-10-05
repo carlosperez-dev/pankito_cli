@@ -17,7 +17,7 @@ release:
 
 universal_binaries:
   - replace: true
-  
+
 brews:
   - name: playita
     description: "Space repetition in the terminal"
@@ -28,6 +28,8 @@ brews:
     commit_author:
       name: carlosperez-dev
       email: 67346082+carlosperez-dev@users.noreply.github.com
+    install: |
+      bin.install "playita"
 
 checksum:
   name_template: "checksums.txt"
