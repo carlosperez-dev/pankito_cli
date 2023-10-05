@@ -80,7 +80,6 @@ jobs:
         with:
           name: playita-darwin
           path: ./playita-build/darwin
-
       - name: Release
         uses: goreleaser/goreleaser-action@v5
         with:

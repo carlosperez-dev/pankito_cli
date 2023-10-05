@@ -28,3 +28,15 @@ universal_binaries:
     # If left as false, your end release might have both several macOS archives:
     # amd64, arm64 and all.
     replace: true
+
+brews:
+  - name: playita
+    description: "Space repetition in the terminal"
+    homepage: "https://github.com/carlosperez-dev/playita_cli"
+    tap:
+      owner: carlosperez-dev
+      name: homebrew-playita
+    commit_author:
+      name: carlosperez-dev
+      email: 67346082+carlosperez-dev@users.noreply.github.com
+    install: bin.install "playita"
