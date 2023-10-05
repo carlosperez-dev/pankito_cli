@@ -13,10 +13,10 @@ brews:
     install: bin.install "playita"
 changelog:
   sort: asc
+
 release:
   draft: true
   mode: append
   extra_files:
     - glob: playita-build/**/*
-    - glob: playita-build/checksums.txt
   name_template: "Release {{.Tag}}"

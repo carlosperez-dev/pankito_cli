@@ -80,14 +80,7 @@ jobs:
         with:
           name: playita-darwin
           path: ./playita-build/darwin
-      - name: Merge checksum file
-        run: |
-          cd ./playita-build
-          touch checksums.txt
-          cat ./darwin/checksums.txt >> checksums.txt
-          cat ./linux/checksums.txt >> checksums.txt
-          rm ./darwin/checksums.txt
-          rm ./linux/checksums.txt
+
       - name: Release
         uses: goreleaser/goreleaser-action@v5
         with:
