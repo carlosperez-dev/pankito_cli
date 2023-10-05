@@ -1,0 +1,33 @@
+builds:
+  - binary: playita
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -mod=vendor
+
+release:
+  prerelease: auto
+
+universal_binaries:
+  - replace: true
+
+brews:
+  - name: playita
+    description: "Space repetition in the terminal"
+    homepage: "https://github.com/carlosperez-dev/playita_cli"
+    tap:
+      owner: carlosperez-dev
+      name: homebrew-playita
+    commit_author:
+      name: carlosperez-dev
+      email: 67346082+carlosperez-dev@users.noreply.github.com
+    install: bin.install "playita"
+
+checksum:
+  name_template: "checksums.txt"
