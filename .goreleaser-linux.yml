@@ -12,6 +12,3 @@ builds:
 
 release:
   prerelease: auto
-
-checksum:
-  name_template: "checksums.txt"
