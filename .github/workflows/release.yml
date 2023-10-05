@@ -30,7 +30,6 @@ jobs:
           v: true
           x: false
           ldflags: -s -w
-          trimpath: true
 
       # - name: Move artifacts
       #   run: |
