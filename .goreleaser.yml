@@ -7,12 +7,28 @@ builds:
       - amd64
       - arm64
     env:
-      - CGO_ENABLED=1
+      - CGO_ENABLED=0
     flags:
       - -mod=vendor
 
 release:
   prerelease: auto
+
+# .goreleaser.yaml
+universal_binaries:
+  - # ID of resulting universal binary.
+    id: playita_cli
+
+    ids:
+      - build1
+      - build2
+
+    name_template: "{{.ProjectName}}_{{.Version}}"
+
+    # Whether to remove the previous single-arch binaries from the artifact list.
+    # If left as false, your end release might have both several macOS archives:
+    # amd64, arm64 and all.
+    replace: true
 
 brews:
   - name: playita
