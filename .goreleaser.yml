@@ -14,6 +14,9 @@ builds:
 release:
   prerelease: auto
 
+universal_binaries:
+  - replace: true
+
 brews:
   - name: playita
     description: "Space repetition in the terminal"
