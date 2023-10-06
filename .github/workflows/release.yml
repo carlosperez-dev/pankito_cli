@@ -37,6 +37,6 @@ jobs:
           # either 'goreleaser' (default) or 'goreleaser-pro'
           distribution: goreleaser
           version: ${{ env.GITHUB_REF_NAME }}
-          args: release --clean --skip-validate
+          args: release --clean --skip=validate
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISHER_TOKEN }}
