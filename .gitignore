@@ -1,5 +1,3 @@
 *.db
 *.env
 *.out
-dist/
-build/
