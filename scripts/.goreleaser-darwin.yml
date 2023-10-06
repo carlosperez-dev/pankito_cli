@@ -1,0 +1,28 @@
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - id: cli
+    binary: playita
+    ldflags:
+      - -w -s
+      - -X github.com/carlosperez-dev/playita_cli/.version={{.Version}}
+      - -X github.com/carlosperez-dev/playita_cli/.goversion=${GO_VERSION}
+      - -X github.com/carlosperez-dev/playita_cli/.gitcommit={{.Commit}}
+      - -X github.com/carlosperez-dev/playita_cli/.buildtime={{.Timestamp}}
+      - -X github.com/carlosperez-dev/playita_cli/.builduser=goreleaser
+    tags:
+      - release
+    env:
+      - GO_VERSION="1.21.1"
+      - CGO_ENABLED=1
+      - GIT_COMMIT="unknown"
+      - BUILD_TIME="unknown"
+      - BUILD_USER="unknown"
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"

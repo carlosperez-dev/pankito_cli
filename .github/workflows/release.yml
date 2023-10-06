@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  Release:
+  build-linux-binary:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,14 +25,98 @@ jobs:
         with:
           check-latest: true
 
+      - name: Install cross compiles for linux
+        run: sudo apt-get -y install gcc-aarch64-linux-gnu
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:
-          # either 'goreleaser' (default) or 'goreleaser-pro'
           distribution: goreleaser
           version: ${{ env.GITHUB_REF_NAME }}
-          args: release --clean
+          args: release  --skip-publish --config scripts/.goreleaser-linux.yml
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISHER_TOKEN }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: playita-linux
+          path: dist/playita*
           # Your GoReleaser Pro key, if you are using the 'goreleaser-pro' distribution
           # GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+
+  build-darwin-binary:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          check-latest: true
+
+      - name: Install cross compiles for linux
+        run: sudo apt-get -y install gcc-aarch64-linux-gnu
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: ${{ env.GITHUB_REF_NAME }}
+          args: release  --skip-publish --config scripts/.goreleaser-darwin.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.PUBLISHER_TOKEN }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: playita-darwin
+          path: dist/playita*
+
+  draft-release:
+    needs: [build-linux-binary, build-darwin-binary]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          check-latest: true
+
+      - name: Make directories
+        run: |
+          mkdir -p ./playita-build/linux
+          mkdir -p ./playita-build/darwin
+
+      - name: Download linux binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: playita-linux
+          path: ./playita-build/linux
+
+      - name: Download darwin binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: playita-darwin
+          path: ./playita-build/darwin
+      - name: Merge checksum file
+        run: |
+          cd ./playita-build
+          cat ./darwin/playita*checksums.txt >> checksums.txt
+          cat ./linux/playita*checksums.txt >> checksums.txt
+          rm ./darwin/playita*checksums.txt
+          rm ./linux/playita*checksums.txt
+
+      - name: Release
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          args: release --config scripts/.goreleaser-release.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
