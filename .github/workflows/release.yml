@@ -58,9 +58,6 @@ jobs:
         with:
           check-latest: true
 
-      - name: Install cross compiles for linux
-        run: sudo apt-get -y install gcc-aarch64-linux-gnu
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:
