@@ -1,16 +1,5 @@
 builds:
   - skip: true
-  - binary: playita
-    goos:
-      - darwin
-    goarch:
-      - arm64
-    env:
-      - CGO_ENABLED=1
-    flags:
-      - -mod=vendor
-release:
-  prerelease: auto
 
 brews:
   - name: playita
