@@ -21,6 +21,7 @@ jobs:
           fetch-depth: 0
       - name: Set up Go
         uses: actions/setup-go@v4
+      - run: sudo apt-get install build-essential
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:
