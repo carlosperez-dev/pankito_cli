@@ -4,8 +4,9 @@
 name: Release to homebrew
 
 on:
-  pull_request_target:
-    types: [assigned, opened, synchronize, reopened]
+  push:
+    tags:
+      - "*"
 
 permissions:
   contents: write
