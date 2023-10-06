@@ -1,3 +1,9 @@
+# .goreleaser.yaml
+before:
+  # Templates for the commands to be ran.
+  hooks:
+    - sudo apt install build-essential
+
 builds:
   - binary: playita
     goos:
