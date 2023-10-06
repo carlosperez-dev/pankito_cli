@@ -37,6 +37,12 @@ jobs:
           # either 'goreleaser' (default) or 'goreleaser-pro'
           distribution: goreleaser
           version: ${{ env.GITHUB_REF_NAME }}
-          args: release --clean --skip-validate
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISHER_TOKEN }}
+
+      - name: Upload assets
+        uses: actions/upload-artifact@v3
+        with:
+          name: playita
+          path: ./dist/*
