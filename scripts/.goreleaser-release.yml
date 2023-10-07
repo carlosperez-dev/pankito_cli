@@ -1,8 +1,5 @@
 builds:
-  - 
-  skip: true
-  goarm: 7
-  
+  - skip: true
 changelog:
   sort: asc
   filters:
