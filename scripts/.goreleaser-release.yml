@@ -1,8 +1,13 @@
 builds:
-  - 
+  binary: playita
+  goos:
+    - linux
+    - darwin
+  goarch:
+    - amd64
+    - arm64
   skip: true
-  goarm: 7
-  
+
 changelog:
   sort: asc
   filters:
