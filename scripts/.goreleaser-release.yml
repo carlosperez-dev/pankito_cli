@@ -7,7 +7,6 @@ changelog:
       - "^docs:"
       - "^test:"
 release:
-  draft: true
   mode: append
   extra_files:
     - glob: ./playita-build/**/*
@@ -26,13 +25,13 @@ release:
 
     ## Code Diff
 
-# brews:
-#   - name: Release to homebrew
-#     description: "Space repetition in the terminal"
-#     homepage: "https://github.com/carlosperez-dev/playita_cli"
-#     tap:
-#       owner: carlosperez-dev
-#       name: homebrew-playita
-#     commit_author:
-#       name: carlosperez-dev
-#       email: 67346082+carlosperez-dev@users.noreply.github.com
+brews:
+  - name: Release to homebrew
+    description: "Space repetition in the terminal"
+    homepage: "https://github.com/carlosperez-dev/playita_cli"
+    tap:
+      owner: carlosperez-dev
+      name: homebrew-playita
+    commit_author:
+      name: carlosperez-dev
+      email: 67346082+carlosperez-dev@users.noreply.github.com
