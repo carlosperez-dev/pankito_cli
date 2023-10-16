@@ -4,6 +4,12 @@ I have been a user of [Anki](https://github.com/ankitects/anki) for the last 3 y
 ## Why Go?
 After watching multiple videos that speak highly of the language for its readability and usability, I decided to give it a Go (pun intended) and a CLI application is always a great first project to get comfortable with syntax and the standard libraries. Moreover, I wanted to have a bit of fun with a language that's different from the one I use at work (C#).
 
+## Installation (currently only available in MacOS and Linux)
+1. Ensure you have Homebrew installed, for instructions click [here] (https://brew.sh/).
+2. Tap the cask for Playita `brew tap carlosperez-dev/playita`.
+3. Install Playita `brew install playita`.
+4. Run by calling `playita` without any flags.
+
 ## ⚠️ Tests (under construction)
 To run tests execute `go test` or `go test -v` for a verbose output.  
 
